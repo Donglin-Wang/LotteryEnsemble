@@ -8,3 +8,39 @@ This repo is used for experimenting with the LotteryFL model. The original paper
 ## Preliminary Plan:
 - **2020/10/14:** Create repo, decide on a bare-bone project structure
 
+## Details:
+
+Here are the configs that are shared across the program in the `args` variable. To access, for example, prun type, use `args.prune_type`
+
+### Global Arguments:
+
+**General Configs**
+
+- `--dataset`	: Choice of dataset 
+	- Options : `mnist`
+	- Default : `mnist`
+- `--arch`	 : Type of architecture
+- `--gpu`	: Decide Which GPU the program should use 
+
+**Configs for LTH**
+
+- `--prune_type` : Type of pruning 
+- `--prune_percent`	: Percentage of weight to be pruned after each cycle. 
+- `--prune_iterations`	: Number of cycle of pruning that should be done. 
+
+- `--batch_size`	: Batch size.
+	- Default : `4`
+- `--print_freq`	: Frequency for printing accuracy and loss. 
+- `--valid_freq`	: Frequency for Validation.
+
+**Configs for FedAvg**
+
+- `--server_epoch`   : Number of communication rounds for the server.
+- `--client_epoch`   : Number of rounds of training for each client.
+- `--lr`       : Learning rate
+- `--iid`      : Distribution of data amongst users. 
+- `--num_users`: Number of users. 
+- `--frac`     : Fraction of users to be used for federated updates. 
+- `--local_ep` : Number of local training epochs in each user. 
+- `--local_bs` : Batch size of local updates in each user. 
+- `--unequal`  : Used in non-iid setting. Option to split the data amongst users equally or unequally.
