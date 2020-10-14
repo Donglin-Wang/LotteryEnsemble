@@ -6,13 +6,28 @@ This repository is used for experimenting with the LotteryFL model. The original
 3. https://github.com/rahulvigneswaran/Lottery-Ticket-Hypothesis-in-Pytorch Re-implementation of the Lottery Ticket Hypothesis (LTH). The original paper for LTH can be found [here](https://arxiv.org/abs/1803.03635)
 
 ## Preliminary Plan:
+
 - **2020/10/14:** Create repo, decide on a bare-bone project structure
+- By **2020/10/16** Implement a functional single-round LTH experiment in the Client class
+
+## Potential Adaptations:
+
+- [Ensemble Distillation for Robust Model Fusion in Federated Learning](https://arxiv.org/abs/2006.07242)
+- [Sparse Transfer Learning via Winning Lottery Tickets](https://arxiv.org/abs/1905.07785)
+	- Implementation: https://github.com/rahulsmehta/sparsity-experiments
+- [Model-Agnostic Round-Optimal Federated Learning via Knowledge Transfer](https://arxiv.org/abs/2010.01017)
+- [Using Winning Lottery Tickets in Transfer Learning for Convolutional Neural Networks](https://ieeexplore.ieee.org/abstract/document/8852405) (Please access through Uottawa bibilio or other platform with subscription to IEEE Xplore)
+- [FedMD: Heterogenous Federated Learning via Model Distillation](https://arxiv.org/pdf/1910.03581v1.pdf)
+	- Implementation: https://github.com/diogenes0319/FedMD_clean
+- [One ticket to win them all: generalizing lottery ticket initializations across datasets and optimizers](https://arxiv.org/pdf/1906.02773v2.pdf)
+    - Implementation: https://github.com/varungohil/Generalizing-Lottery-Tickets (**Non-official**)
+- [Linear Mode Connectivity and the Lottery Ticket Hypothesis](https://arxiv.org/abs/1912.05671) (**Paper by the original LTH author**)
 
 ## Details:
 
-Here are the configs shared across the program in the `args` variable. To access individual config, use `args.<option name>`. For example, `args.prune_type`
-
 ### Global Arguments:
+
+Here are the configs shared across the program in the `args` variable. To access individual config, use `args.<option name>`. For example, `args.prune_type`
 
 **General Configs**
 
