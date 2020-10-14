@@ -29,16 +29,20 @@ class Client:
         self.client_epoch = args.client_epoch
         self.prune_iterations = args.prune_iterations
         self.prune_percent = args.prune_percent
-        self.mask = self.init_mask()
+        self.mask = self.init_mask(self.model)
         
         # TODO: implement the following initilizations
         # self.rtarget = ???  (See LotterFL Page 4 Algo 1) 
         # self.acc_target = ??? (See LotterFL Page 4 Algo 1)
         
-    def client_update_loop():
-        return
-    
-    def trainModel(self):
+    def client_update_loop(self, global_state, global_init_weight):
+       self.model.load_state_dict(global_state)
+       for i in range(self.prune_iterations):
+           self.train()
+           self.mask = self.get_prune_mask(prune_percent, self.model)
+          
+           
+    def train(self):
         loss_function = nn.CrossEntropyLoss()
         opt = optim.Adam(self.model.parameters(), lr=self.lr)
         error = []
@@ -65,23 +69,25 @@ class Client:
     def test():
         return
     
-    def init_mask(self):
+    def init_mask(self, model):
         
-        assert self.model, "init_mask() is called before the model is initialized"
+        assert model, "init_mask() is called before the model is initialized"
         
         layer = 0
-        for name, param in self.model.named_parameters(): 
+        for name, param in model.named_parameters(): 
             if 'weight' in name:
                 layer = layer + 1
-        self.mask = [None]* layer
+        mask = [None]* layer
         
         layer = 0
-        for name, param in self.model.named_parameters(): 
+        for name, param in model.named_parameters(): 
             if 'weight' in name:
                 tensor = param.data.cpu().numpy()
-                self.mask[layer] = np.ones_like(tensor)
+                mask[layer] = np.ones_like(tensor)
                 layer = layer + 1
         layer = 0
+        
+        return mask
     
             
     def prune():
@@ -89,13 +95,13 @@ class Client:
     
     def set_to_init_weights():
         return
-    def prun_by_percent(self, percent):
+    def get_prune_mask(self, percent, model):
         
-        assert self.model, "prune_by_percent() is called before the model is initialized"
+        assert model, "prune_by_percent() is called before the model is initialized"
         
         # Calculate percentile value
         layer = 0
-        for name, param in self.model.named_parameters():
+        for name, param in model.named_parameters():
 
             # We do not prune bias term
             if 'weight' in name:
@@ -105,13 +111,15 @@ class Client:
 
                 # Convert Tensors to numpy and calculate
                 weight_dev = param.device
-                new_mask = np.where(abs(tensor) < percentile_value, 0, self.mask[layer])
+                new_mask = np.where(abs(tensor) < percentile_value, 0, mask[layer])
                 
                 # Apply new weight and mask
                 param.data = torch.from_numpy(tensor * new_mask).to(weight_dev)
-                self.mask[layer] = new_mask
+                mask[layer] = new_mask
                 layer += 1
         layer = 0
+        
+        return mask
 
 if __name__ == "__main__":
     from DataSource import get_data
