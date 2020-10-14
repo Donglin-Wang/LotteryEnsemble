@@ -10,7 +10,7 @@ This repo is used for experimenting with the LotteryFL model. The original paper
 
 ## Details:
 
-Here are the configs that are shared across the program in the `args` variable. To access, for example, prun type, use `args.prune_type`
+Here are the configs shared across the program in the `args` variable. To access individual config, use `args.<option name>`. For example, `args.prune_type`
 
 ### Global Arguments:
 
@@ -30,7 +30,7 @@ Here are the configs that are shared across the program in the `args` variable. 
 
 - `--batch_size`	: Batch size.
 	- Default : `4`
-- `--print_freq`	: Frequency for printing accuracy and loss. 
+- `--log_freq`	: Frequency for printing accuracy and loss. 
 - `--valid_freq`	: Frequency for Validation.
 
 **Configs for FedAvg**
