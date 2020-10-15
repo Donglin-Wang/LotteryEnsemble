@@ -8,7 +8,9 @@ This repository is used for experimenting with the LotteryFL model. The original
 ## Preliminary Plan:
 
 - **2020/10/14:** Create repo, decide on a bare-bone project structure
-- By **2020/10/16** Implement a functional single-round LTH experiment in the Client class
+- Starting **2020/10/15:** Each contributor come up with a pseudo-code for the Client & Server update logic
+- By **2020/10/16** Finalize on the client and server update logic
+- By **2020/10/19** Implement a functional single-round LTH experiment in the Client class
 
 ## Potential Adaptations:
 
