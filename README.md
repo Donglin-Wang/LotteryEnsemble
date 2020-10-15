@@ -5,6 +5,11 @@ This repository is used for experimenting with the LotteryFL model. The original
 2. https://github.com/jeremy313/non-iid-dataset-for-personalized-federated-learning Offical repo for LotteryFL. As of 2020/10/14, this repo only contains the code for generating their dataset.
 3. https://github.com/rahulvigneswaran/Lottery-Ticket-Hypothesis-in-Pytorch Re-implementation of the Lottery Ticket Hypothesis (LTH). The original paper for LTH can be found [here](https://arxiv.org/abs/1803.03635)
 
+## Preliminary Goals:
+
+- See how much overlap there is for different weights coming from different clients
+- See how weighted average affect the performance of LotteryFL
+
 ## Preliminary Plan:
 
 - **2020/10/14:** Create repo, decide on a bare-bone project structure
