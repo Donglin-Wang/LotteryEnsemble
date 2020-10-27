@@ -35,7 +35,7 @@ Building on top of this framework, the FedKT algorithm applies PATE several time
 
 ### Problem Domain:
 
-There are two approaches to ensemble learning. First, there's FedAvg where the weights of the models are averaged. However, this can only handle one type of mode. Second, there's the Deep Ensemble where the outputs are averaged. However, this requires either the server or the client to remember a large set of models, which can be unrealistic. FedDF proposed in this paper aim to solve both problems. 
+There are two approaches to ensemble learning. First, there's FedAvg where the weights of the models are averaged. However, this can only handle one type of model. Second, there's the Deep Ensemble where the outputs are averaged. However, this requires either the server or the client to remember a large set of models, which can be unrealistic. FedDF proposed in this paper aim to solve both problems. 
 
 The author does this by updating the global server weights using the gradient of KL divergence of each client's model and the server. Referring to the following figure, we can see that the authors first convert the model function to a probability distribution using the sigmoid activation. Then, the algorithm takes the derivative of the KL divergence of the two distributions with respect to the weights in the server. By doing so, the FedDF algorithms can assimilate the learning results from all the clients while considering both the output and the weights.
 
