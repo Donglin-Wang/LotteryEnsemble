@@ -11,8 +11,5 @@ class ClientBase:
         return self.model.get_weights()
 
 
-    def get_mask(self):
-        return self.mask
-
     def sample_size(self):
         return self.X.shape[0]
