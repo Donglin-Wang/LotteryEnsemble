@@ -30,10 +30,22 @@ class ServerBase(ABC):
             curr_offset += count
         return result
 
+# PROPOSAL: replace this client-sample-based FedAvg with a FedAvg over all clients
+#           which is what I think the FedAvg algorithm actually wants.
+# OLD:
+#     def _fed_avg_aggregate(self, clients):
+#         return ServerBase._unflatten(
+#             (1/self.n) * functools.reduce(operator.add,
+#                                           [c.sample_size() * ServerBase._flatten(c.get_weights()) for c in clients]),
+#             self.shapes)
+# NEW:
+# Here we ignore the parameter clients and use self.clients, which is actually what FedAvg is supposed to do.
+# TODO: If accepted, get rid of argument and clean up calls.
     def _fed_avg_aggregate(self, clients):
         return ServerBase._unflatten(
             (1 / self.n) * functools.reduce(operator.add,
-                                            [c.sample_size() * ServerBase._flatten(c.get_weights()) for c in clients]),
+                                            [c.sample_size() * ServerBase._flatten(c.get_weights()) for c in
+                                             self.clients]),
             self.shapes)
 
     def get_weights(self):
