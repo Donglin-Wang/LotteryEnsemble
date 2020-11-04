@@ -19,6 +19,22 @@ class Client_LotteryFL(ClientBase):
     def get_mask(self):
         return self.mask
 
+    # PROPOSAL 2: supports replacing simple FedAvg with one more appropriate for LotteryFL
+    #             Also see server_LotteryFL.py
+    # This returns a longer mask that includes 1's for all non-prunable parameters (e.g. bias)
+    def get_mask_extended(self):
+        curr_offset = 0
+        result = []
+
+        for layer in self.model.get_weights():
+            if layer.ndim > 1:
+                count = np.prod(layer.shape)
+                result.extend(self.mask[0, curr_offset:curr_offset + count])
+                curr_offset += count
+            else:
+                result.extend(np.ones(layer.size, dtype=int))
+        return np.array(result)
+
     def get_weights(self):
         weights = self.model.get_weights()
         return unflatten_prunable(flatten_prunable(weights) * self.mask, weights)
