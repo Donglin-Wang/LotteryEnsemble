@@ -1,20 +1,19 @@
+# Core dependencies
+import math
 import copy
-import numpy as np
-import torch
-import torchvision as tv
-import torch.nn as nn
-import torch.optim as optim
-import torchvision.transforms as tf
+
+
+from util import train, evaluate, prune_fixed_amount
 
 class Client:
-    def __init__(self, args, data_loader):
+    def __init__(self, args, train_loader, test_loader, client_update_method=None):
+        
+        # Initializing the model
+        self.model = None
+        # Initializing client update method
+        self.client_update_method = client_update_method
         
         if args.dataset == "mnist": from archs.mnist import mlp
-        else:
-            print("You did not enter the name of a supported dataset")
-            print("Supported datasets: {}, {}".format('"CIFAR10"', '"MNIST"'))
-            exit()
-        
         if args.arch == 'mlp': self.model = mlp.MLP()
         else:
             print("You did not enter the name of a supported architecture for this dataset")
@@ -22,116 +21,71 @@ class Client:
             exit()
         
         assert self.model, "Something went wrong and the model cannot be initialized"
-        
-        self.log_freq = args.log_freq
         self.init_model_state = copy.deepcopy(self.model.state_dict())
-        self.train_loader = data_loader
+        
+        # Getting the settings for the model
+        self.lr = args.lr
+        self.val_precent = 0.15
+        self.batch_size = args.batch_size
         self.client_epoch = args.client_epoch
         self.prune_iterations = args.prune_iterations
         self.prune_percent = args.prune_percent
-        self.mask = self.init_mask(self.model)
+        # self.prune_amount = args.prune_amount
         
-        # TODO: implement the following initilizations
-        # self.rtarget = ???  (See LotterFL Page 4 Algo 1) 
-        # self.acc_target = ??? (See LotterFL Page 4 Algo 1)
+        # Splitting the data
+        self.test_loader = test_loader
+        self.train_loader = train_loader
         
-    def client_update_loop(self, global_state, global_init_weight):
-       self.model.load_state_dict(global_state)
-       for i in range(self.prune_iterations):
-           self.train()
-           self.mask = self.get_prune_mask(prune_percent, self.model)
-          
-           
-    def train(self):
-        loss_function = nn.CrossEntropyLoss()
-        opt = optim.Adam(self.model.parameters(), lr=self.lr)
-        error = []
-        print("Model is starting to train...")
-        for epoch in range(self.client_epoch):
-            total_loss = 0.0
-            for i, data in enumerate(self.train_loader, 0):
-                # Getting inputs and predictions
-                inputs, labels = data
-                opt.zero_grad()
-                pred = self.model(inputs)
-                # Gradient descent
-                loss = loss_function(pred, labels)
-                loss.backward()
-                opt.step()
-                # Loss Calculation
-                total_loss += loss.item()
-                if i % self.log_freq == self.log_freq - 1:
-                   error.append(total_loss / self.log_freq)
-                   total_loss = 0.0
-        print("Finished Training")
-        return error
-    
-    def test():
-        return
-    
-    def init_mask(self, model):
+    def client_update(self, global_model, global_init_weight):
+        if self.client_update_method:
+            return self.client_update_method(self, global_model, global_init_weight)
+        else:
+            return self.default_client_update_method(global_model, global_init_weight)
         
-        assert model, "init_mask() is called before the model is initialized"
+    def default_client_update_method(self, global_model, global_init_weight):
         
-        layer = 0
-        for name, param in model.named_parameters(): 
-            if 'weight' in name:
-                layer = layer + 1
-        mask = [None]* layer
+        self.model = copy.deepcopy(global_model)
         
-        layer = 0
-        for name, param in model.named_parameters(): 
-            if 'weight' in name:
-                tensor = param.data.cpu().numpy()
-                mask[layer] = np.ones_like(tensor)
-                layer = layer + 1
-        layer = 0
+        num_params = sum([p.numel() for p in self.model.parameters() if p.requires_grad])
+        prune_step = math.floor(num_params * self.prune_percent / self.prune_iterations)
         
-        return mask
-    
-            
-    def prune():
-        return
-    
-    def set_to_init_weights():
-        return
-    def get_prune_mask(self, percent, model):
+        score = evaluate(self.model, self.test_loader)
         
-        assert model, "prune_by_percent() is called before the model is initialized"
+        if score['Accuracy'][0] > 0.5:
+            prune_fixed_amount(self.model, prune_step)
         
-        # Calculate percentile value
-        layer = 0
-        for name, param in model.named_parameters():
-
-            # We do not prune bias term
-            if 'weight' in name:
-                tensor = param.data.cpu().numpy()
-                alive = tensor[np.nonzero(tensor)] # flattened array of nonzero values
-                percentile_value = np.percentile(abs(alive), percent)
-
-                # Convert Tensors to numpy and calculate
-                weight_dev = param.device
-                new_mask = np.where(abs(tensor) < percentile_value, 0, mask[layer])
-                
-                # Apply new weight and mask
-                param.data = torch.from_numpy(tensor * new_mask).to(weight_dev)
-                mask[layer] = new_mask
-                layer += 1
-        layer = 0
+        train(self.model, self.train_loader, self.client_epoch)
         
-        return mask
-
+        return copy.deepcopy(self.model.state_dict())
+   
 if __name__ == "__main__":
     from DataSource import get_data
+    from archs.mnist.mlp import MLP
+    
+    
     # Creating an empty object to which we can add any attributes
     args = type('', (), {})()
     
     args.dataset = 'mnist'
     args.arch = 'mlp'
-    args.client_epoch = 100
-    args.prune_iterations = 10
+    args.lr = 0.001
+    args.client_epoch = 3
+    args.prune_iterations = 2
     args.prune_type = 'reinit'
-    args.prune_percent = 10
+    args.prune_percent = 0.45
+    args.batch_size = 4
     
-    client_loaders, test_loader = get_data(1, 'mnist')
-    client = Client(args, client_loaders[0])
+    global_model = MLP()
+    global_init_state = copy.deepcopy(global_model.state_dict())
+    global_state = copy.deepcopy(global_model.state_dict())
+    
+    client_loaders, test_loader = get_data(10, 'MNIST', mode='iid', batch_size=args.batch_size)
+    
+    client = Client(args, client_loaders[0], test_loader)
+    for i in range(2):
+        global_state = client.client_update(global_state, global_init_state)
+    # client.train(global_model, 5)
+    
+    
+    
+    

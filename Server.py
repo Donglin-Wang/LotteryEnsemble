@@ -1,12 +1,99 @@
+from util import average_weights, prune_fixed_amount
+import copy
+import numpy as np
+from archs.mnist.mlp import MLP
+
 class Server():
-    def __init__(self, args):
+    
+    def __init__(self, args, clients, server_update_method=None):
         
         self.comm_rounds = args.comm_rounds
+        self.num_clients = args.num_clients
+        self.frac = args.frac
+        self.clients = clients
+        self.server_update_method = server_update_method
         
-        # TODO: implement the following initilizations
-        # self.clients = ???
-        # self.init_weights = ???
-        # self.weights = ???
+        self.client_models = np.zeros((self.comm_rounds+1, self.num_clients), dtype='object')
+        self.global_models = np.zeros((self.comm_rounds+1,), dtype='object')
         
-    def weight_init():
+        init_model = MLP()
+        prune_fixed_amount(init_model, 0)
+    
+        self.global_models[0] = init_model
+        self.global_init_state = copy.deepcopy(init_model.state_dict())
         
+        assert self.num_clients == len(clients),  "Number of client objects does not match command line input"
+        
+    def server_update(self):
+        
+        if self.server_update_method:
+            self.server_update_method(self)
+        else:
+            self.default_server_update()
+            
+    
+    def default_server_update(self):
+        
+        # For each client, 0 means no update and 1 means update
+        update_or_not = [0] * self.num_clients
+        
+        # Recording the update and storing them in record
+        for i in range(1, self.comm_rounds + 1):
+            
+            # Randomly select a fraction of users to update
+            num_selected_clients = max(int(self.frac * self.num_clients), 1)
+            idx_list = np.random.choice(range(self.num_clients), num_selected_clients)
+            for idx in idx_list:
+                update_or_not[idx] = 1
+            
+            print('-------------------------------------', flush=True)
+            print(f'Communication Round #{i}', flush=True)
+            print('-------------------------------------', flush=True)
+            for j in range(len(update_or_not)):
+                
+                if update_or_not[j]:
+                    print(f'***** Client #{j+1} *****', flush=True)
+                    self.client_models[i-1][j] = self.clients[j].client_update(self.global_models[i-1], self.global_init_state)
+                else:
+                    self.client_models[i-1][j] = copy.deepcopy(self.clients[j].model.state_dict())
+            
+            weights = self.client_models[i-1][idx_list]
+            self.global_models[i] = average_weights(weights)
+            
+if __name__ == '__main__':
+    from Client import Client
+    from DataSource import get_data
+
+    # Creating an empty object to which we can add any attributes
+    args = type('', (), {})()
+    
+    args.dataset = 'mnist'
+    args.arch = 'mlp'
+    args.lr = 0.001
+    args.client_epoch = 2
+    args.prune_iterations = 2
+    args.prune_type = 'reinit'
+    args.prune_percent = 0.45
+    args.batch_size = 4
+    
+    args.frac = 0.3
+    args.comm_rounds = 2
+    args.num_clients = 10
+    
+    
+    global_model = MLP()
+    global_init_state = copy.deepcopy(global_model.state_dict())
+    global_state = copy.deepcopy(global_model.state_dict())
+    
+    client_loaders, test_loader = get_data(args.num_clients, 'MNIST', mode='iid', batch_size=args.batch_size)
+    
+    clients = [Client(args, client_loaders[i], test_loader) for i in range(args.num_clients)]
+    
+    server = Server(args, clients)
+    
+    server.server_update()
+    
+    # client = Client(args, client_loaders[0], test_loader)
+    # client.client_update(global_state, global_init_state)
+    # client.train(0, 5)
+    
