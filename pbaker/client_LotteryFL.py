@@ -1,7 +1,32 @@
 import numpy as np
+import tensorflow as tf
 from client_base import ClientBase
 from global_settings import VERBOSE
 from prune import flatten_prunable, unflatten_prunable
+
+
+class ZeroMaskedWeightsCallback(tf.keras.callbacks.Callback):
+    def __init__(self, debug=False):
+        self.debug = debug
+
+
+    def _debug_zero_weights(self, client):
+        by_mask = np.count_nonzero(client.get_mask())
+        by_weights = np.count_nonzero(flatten_prunable(client.model.get_weights()))
+        print(f'active by mask: {by_mask}, non zero count: {by_weights}')
+
+
+    def on_epoch_begin(self, epoch, logs=None):
+        if self.debug:
+            print('-----')
+            self._debug_zero_weights(self.model.client)
+
+        weights = self.model.get_weights()
+        weights = unflatten_prunable(flatten_prunable(weights) * self.model.client.get_mask(), weights)
+        self.model.set_weights(weights)
+
+        if self.debug:
+            self._debug_zero_weights(self.model.client)
 
 
 class Client_LotteryFL(ClientBase):
@@ -54,4 +79,5 @@ class Client_LotteryFL(ClientBase):
 
         self.model.fit(self.X, self.y,
                        batch_size=self.hyper_params['B'], epochs=self.hyper_params['E'],
+                       callbacks=[ZeroMaskedWeightsCallback()],
                        verbose=VERBOSE)
