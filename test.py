@@ -4,10 +4,9 @@ import torch
 import torch.nn as nn
 import torch.nn.utils.prune as prune
 from archs.mnist.mlp import MLP
-from util import prune_fixed_amount, get_prune_params, train
+from util import prune_fixed_amount, get_prune_params, train, create_model
 
-# TEST 1: Test whether prunning done in util is modified in place
-
+# TEST 1: Test whether prunning creates a mask 
 def test1_test_reference():
     model = MLP()
     print(list(model.named_buffers()))
@@ -25,7 +24,6 @@ def test2_test_retrain():
     
     
     # Getting the pruned weight for the middle layer
-    
     train(model, train_loaders[0], 1)
     prune_fixed_amount(model, 150000)
         
@@ -34,11 +32,9 @@ def test2_test_retrain():
         
         # Reverse the mask so that the 1 means un-pruned weights and 0 means 
         # pruned weights
-        
         masks[name[:-5] + '_orig'] = torch.ones_like(buffer) - buffer
     
     # Applying the reversed mask to all of the parameters
-    
     weight_before_retrain = {}
     for name, param in list(model.named_parameters()):
         if name in masks:
@@ -156,10 +152,14 @@ def test4_multiple_pruning():
     # finalize_pruning(mlp)
     copy.deepcopy(mlp)
     print(list(mlp.named_parameters()))
- 
 
+# Test 5: see if create_model creates the correct model
+def test5_create_model():
     
+    model = create_model('mnist', 'mlp')
+    prune_fixed_amount(model, 0)
     
+
    
     
 
@@ -218,11 +218,15 @@ if __name__ == '__main__':
     
     # test2_test_retrain()
     
-    
     # test3_try_average()
-    test4_multiple_pruning()
+    
+    # test4_multiple_pruning()
+    
+    test5_create_model()
     
     
+    # mlp = nn.RNN(10, 20, 2)
+    # prune_fixed_amount(mlp, 700)
     
     # # TEST 3: Dummy example
     

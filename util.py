@@ -1,26 +1,66 @@
+import sys
 import copy
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from sklearn import metrics as skmetrics
 
+
 from tqdm import tqdm
 from tabulate import tabulate
 import torch.nn.utils.prune as prune
 
-def average_weights(weights):
-    avg = copy.deepcopy(weights[0])
-    for key in avg.keys():
-        for i in range(1, len(weights)):
-            avg[key] += weights[i][key]
-        avg[key] = torch.div(avg[key], len(weights))
+
+def average_weights(models):
+    with torch.no_grad():
+        weights = []
+        for model in models:
+            weights.append(dict(model.named_parameters()))
+        
+        avg = copy.deepcopy(weights[0])
+        for key in avg.keys():
+            for i in range(1, len(weights)):
+                avg[key] += weights[i][key]
+            avg[key] = torch.div(avg[key], len(weights))
     return avg
+
+def copy_model(model, dataset_name, model_type):
+    new_model = create_model(dataset_name, model_type)
+    copy_weights(new_model, model.state_dict())
+    return new_model
+    
+def copy_weights(target_model, source_state_dict):
+    for name, param in target_model.named_parameters():
+        if name in source_state_dict:
+            param.data.copy_(source_state_dict[name].data)
+
+def create_model(dataset_name, model_type):
+    
+    if dataset_name == "mnist": 
+        from archs.mnist import mlp
+    else: 
+        print("You did not enter the name of a supported architecture for this dataset")
+        print("Supported datasets: {}, {}".format('"CIFAR10"', '"MNIST"'))
+        exit()
+    
+    if model_type == 'mlp':
+        new_model = mlp.MLP()
+        # This pruning call is made so that the model is set up for accepting
+        # weights from another pruned model. If this is not done, the weights
+        # will be incompatible
+        prune_fixed_amount(new_model, 0, verbose=False)
+        return new_model
+    else:
+        print("You did not enter the name of a supported architecture for this dataset")
+        print("Supported datasets: {}, {}".format('"CIFAR10"', '"MNIST"'))
+        exit()
+    
 
 def train(model, 
           train_loader,
-          num_epochs, 
-          lr=0.001, 
-          start_epoch=0):
+          lr=0.001,
+          verbose=True):
     
     loss_function = nn.CrossEntropyLoss()
     opt = optim.Adam(model.parameters(), lr=lr)
@@ -35,45 +75,42 @@ def train(model,
 
     score = {name:[] for name in metric_names}
 
-    print("Training Begins...", flush=True)
+    progress_bar = tqdm(enumerate(train_loader),
+                        total = num_batch,
+                        file=sys.stdout)   
+    # Iterating over all mini-batches
+    for i, data in progress_bar:
     
-    for epoch in range(start_epoch, num_epochs):
-        
-        progress_bar = tqdm(enumerate(train_loader),
-                            total = num_batch)   
-        # Iterating over all mini-batches
-        for i, data in progress_bar:
-        
-            x, ytrue = data
+        x, ytrue = data
 
-            yraw = model(x)
-            
-            loss = loss_function(yraw, ytrue)
-            
-            model.zero_grad()
-            
-            loss.backward()
-            
-            opt.step()
-            
-            _, ypred = torch.max(yraw, 1)
-           
-            score = calculate_metrics(score, ytrue, yraw, ypred)
-            
-            progress_bar.set_description(f"Epoch {epoch+1}")
-         
-        print('', flush=True)
-        print(f"Scores for Epoch {epoch+1}: ", flush=True)
+        yraw = model(x)
+        
+        loss = loss_function(yraw, ytrue)
+        
+        model.zero_grad()
+        
+        loss.backward()
+        
+        opt.step()
+        
+        # Truning the raw output of the network into one-hot result
+        _, ypred = torch.max(yraw, 1)
        
-        for k, v in score.items():
-            
-            score[k] = [sum(v) / len(v)]
-            
-        print(tabulate(score, headers='keys', tablefmt='github'), flush=True)
-       
-    print("Model Finished Training", flush=True)
+        score = calculate_metrics(score, ytrue, yraw, ypred)
+        
+    average_scores = {}
+        
+    for k, v in score.items():
+        average_scores[k] = [sum(v) / len(v)]
+        score[k].append(sum(v) / len(v))
+    
+    if verbose:
+        print("Average scores for the epoch: ")
+        print(tabulate(average_scores, headers='keys', tablefmt='github'))
+    
+    return average_scores
 
-def evaluate(model, data_loader):
+def evaluate(model, data_loader, verbose=True):
     # Swithicing off gradient calculation to save memory
     torch.no_grad()
     # Switch to eval mode so that layers like Dropout function correctly
@@ -92,7 +129,8 @@ def evaluate(model, data_loader):
     num_batch = len(data_loader)
     
     progress_bar = tqdm(enumerate(data_loader), 
-                        total=num_batch)
+                        total=num_batch,
+                        file=sys.stdout)
     
     for i, (x, ytrue) in progress_bar:
         
@@ -104,18 +142,20 @@ def evaluate(model, data_loader):
         
         progress_bar.set_description('Evaluating')
     
-    print('', flush=True)
-    print('Evaluation Score: ', flush=True)
+   
         
     for k, v in score.items():
         score[k] = [sum(v) / len(v)]
-            
-    print(tabulate(score, headers='keys', tablefmt='github'), flush=True)
+        
+    
+    if verbose:
+        print('Evaluation Score: ')   
+        print(tabulate(score, headers='keys', tablefmt='github'), flush=True)
     
     torch.enable_grad()
     return score
 
-def prune_fixed_amount(model, amount):
+def prune_fixed_amount(model, amount, verbose=True):
     parameters_to_prune, num_global_weights = get_prune_params(model)
     prune.global_unstructured(
         parameters_to_prune,
@@ -142,9 +182,19 @@ def prune_fixed_amount(model, amount):
         prune_stat['Total Pruned'].append(f'{num_layer_zeros}')
         
     global_prune_percent = num_global_zeros / num_global_weights
-    print('Pruning Summary', flush=True)
-    print(tabulate(prune_stat, headers='keys'), flush=True)
-    print(f'Percent Pruned Globaly: {global_prune_percent:.2f}', flush=True)
+    if verbose:
+        print('Pruning Summary', flush=True)
+        print(tabulate(prune_stat, headers='keys'), flush=True)
+        print(f'Percent Pruned Globaly: {global_prune_percent:.2f}', flush=True)
+   
+def get_prune_summary(model):
+    num_global_zeros = 0
+    parameters_to_prune, num_global_weights = get_prune_params(model)
+    for layer, weight_name in parameters_to_prune:
+        num_global_zeros += torch.sum(getattr(layer, weight_name) == 0.0).item()
+    
+    return num_global_zeros, num_global_weights
+        
     
     
 def get_prune_params(model):
@@ -184,7 +234,7 @@ def get_prune_params(model):
         
     
 
-def calculate_metrics(score, ytrue, yraw, ypred, average=False, verbose=False):
+def calculate_metrics(score, ytrue, yraw, ypred):
     if 'Loss' in score:
         loss = nn.CrossEntropyLoss()
         score['Loss'].append(loss(yraw, ytrue))
@@ -200,8 +250,6 @@ def calculate_metrics(score, ytrue, yraw, ypred, average=False, verbose=False):
         score['Precision Macro'].append(skmetrics.precision_score(ytrue, ypred, average='macro'))
     if 'Recall Macro' in score:
         score['Recall Macro'].append(skmetrics.recall_score(ytrue, ypred, average='macro'))
-    if verbose:
-        print(tabulate(score, headers='keys', tablefmt='github'), flush=True)
     
     return score
         
