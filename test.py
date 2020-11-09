@@ -222,7 +222,7 @@ if __name__ == '__main__':
     
     # test4_multiple_pruning()
     
-    test5_create_model()
+    # test5_create_model()
     
     
     # mlp = nn.RNN(10, 20, 2)

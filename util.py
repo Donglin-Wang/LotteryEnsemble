@@ -25,6 +25,8 @@ def average_weights(models):
             avg[key] = torch.div(avg[key], len(weights))
     return avg
 
+
+
 def copy_model(model, dataset_name, model_type):
     new_model = create_model(dataset_name, model_type)
     copy_weights(new_model, model.state_dict())

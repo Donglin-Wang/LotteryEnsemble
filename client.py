@@ -21,21 +21,30 @@ class Client:
         
     def default_client_update_method(self, global_model, global_init_model):
         
-        self.model = global_model
+        self.model = copy_model(global_model,
+                                self.args.dataset,
+                                self.args.arch)
         
         num_pruned, num_params = get_prune_summary(self.model)
         cur_prune_rate = num_pruned / num_params
-        prune_step = math.floor(num_params * self.args.prune_percent)
+        prune_step = math.floor(num_params * self.args.prune_step)
         
        
-        score = evaluate(self.model, self.test_loader)
+        score = evaluate(self.model, 
+                         self.test_loader,
+                         verbosity=self.args.test_verbosity)
         
         if score['Accuracy'][0] > self.args.acc_thresh and cur_prune_rate < self.args.prune_percent:
-            prune_fixed_amount(self.model, prune_step)
+            prune_fixed_amount(self.model, 
+                               prune_step,
+                               verbosity=self.args.prune_verbosity)
         
         for i in range(self.args.client_epoch):
             print(f'Epoch {i+1}')
-            train(self.model, self.train_loader, lr=self.args.lr)
+            train(self.model, 
+                  self.train_loader, 
+                  lr=self.args.lr,
+                  verbosity=self.args.train_verbosity)
             
         
         return copy_model(self.model, self.args.dataset, self.args.arch)

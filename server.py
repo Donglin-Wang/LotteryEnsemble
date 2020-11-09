@@ -81,8 +81,7 @@ if __name__ == '__main__':
     args.frac = 0.3
     args.comm_rounds = 2
     args.num_clients = 10
-    
-    
+     
     global_model = MLP()
     global_init_model = copy.deepcopy(global_model.state_dict())
     global_state = copy.deepcopy(global_model.state_dict())

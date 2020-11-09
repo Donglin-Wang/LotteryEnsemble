@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from util import get_prune_params, evaluate, prune_fixed_amount, train, copy_model, get_prune_summary
+from util import evaluate, prune_fixed_amount, train, copy_model, get_prune_summary
 import math
 from client import Client
 from server import Server
@@ -19,22 +19,32 @@ def client_update_method1(client_self, global_model, global_init_model):
     assert isinstance(client_self.test_loader, torch.utils.data.DataLoader), "test_loader must be a DataLoader type"
     
     
-    client_self.model = global_model
+    client_self.model = copy_model(global_model, 
+                                   client_self.args.dataset,
+                                   client_self.args.arch)
+    
     num_pruned, num_params = get_prune_summary(client_self.model)
     cur_prune_rate = num_pruned / num_params
-    prune_step = math.floor(num_params * client_self.args.prune_percent)
+    prune_step = math.floor(num_params * client_self.args.prune_step)
     
     
     for i in range(client_self.args.client_epoch):
         print(f'Epoch {i+1}')
         train(client_self.model, 
               client_self.train_loader, 
-              lr=client_self.args.lr)
+              lr=client_self.args.lr,
+              verbosity=client_self.args.train_verbosity)
     
    
-    score = evaluate(client_self.model, client_self.test_loader)
+    score = evaluate(client_self.model, 
+                     client_self.test_loader, 
+                     verbosity=client_self.args.test_verbosity)
+    
     if score['Accuracy'][0] > client_self.args.acc_thresh and cur_prune_rate < client_self.args.prune_percent:
-        prune_fixed_amount(client_self.model, prune_step)
+        
+        prune_fixed_amount(client_self.model, 
+                           prune_step,
+                           verbosity=client_self.args.prune_verbosity)
     
     
     return copy_model(client_self.model, client_self.args.dataset, client_self.args.arch)
@@ -54,8 +64,8 @@ def build_args(arch='mlp',
                client_epoch=10,
                acc_thresh=0.5,
                prune_iterations=None,
-               prune_percent=0.15,
-               prune_amount=None,
+               prune_percent=0.45,
+               prune_step=0.15,
                prune_type=None,
                train_verbosity=True,
                test_verbosity=True,
@@ -76,7 +86,7 @@ def build_args(arch='mlp',
     args.acc_thresh = acc_thresh
     args.prune_iterations = prune_iterations
     args.prune_percent = prune_percent
-    args.prune_amount = prune_amount
+    args.prune_step= prune_step
     args.prune_type = prune_type
     args.train_verbosity = train_verbosity
     args.test_verbosity = test_verbosity
