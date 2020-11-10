@@ -87,7 +87,7 @@ def get_data(num_clients, dataset_name,
      # Downloading data based on inputs. If the data is already downloaded,
      # it won't be download twice
      
-    if dataset_name == "CIFAR10":
+    if dataset_name == "cifar10":
         train_data = tv.datasets.CIFAR10(root="./data", 
                                  train=True, 
                                  download=True, 
@@ -96,7 +96,7 @@ def get_data(num_clients, dataset_name,
                                 train=False,
                                 download=True,
                                 transform=transform)
-    elif dataset_name == "MNIST":
+    elif dataset_name == "mnist":
         train_data = tv.datasets.MNIST(root="./data", 
                                  train=True, 
                                  download=True, 
@@ -107,7 +107,7 @@ def get_data(num_clients, dataset_name,
                                 transform=transform)
     else:
         print("You did not enter the name of a supported dataset")
-        print("Supported datasets: {}, {}".format('"CIFAR10"', '"MNIST"'))
+        print("Supported datasets: {}, {}".format('"cifar10"', '"mnist"'))
         exit()
         
     global_test_loader = torch.utils.data.DataLoader(test_data, batch_size=batch_size)
