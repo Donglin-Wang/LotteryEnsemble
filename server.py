@@ -39,7 +39,7 @@ class Server():
         update_or_not = [0] * self.num_clients
         
         # Recording the update and storing them in record
-        for i in range(1, self.comm_rounds):
+        for i in range(1, self.comm_rounds+1):
             
             # Randomly select a fraction of users to update
             num_selected_clients = max(int(self.frac * self.num_clients), 1)

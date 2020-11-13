@@ -27,9 +27,14 @@ def average_weights(models):
 
 
 
-def copy_model(model, dataset_name, model_type):
-    new_model = create_model(dataset_name, model_type)
-    copy_weights(new_model, model.state_dict())
+def copy_model(model, dataset, arch):
+    new_model = create_model(dataset, arch)
+    source_weights = dict(model.named_parameters())
+    source_buffers = dict(model.named_buffers())
+    for name, param in new_model.named_parameters():
+        param.data.copy_(source_weights[name])
+    for name, buffer in new_model.named_buffers():
+        buffer.data.copy_(source_buffers[name])
     return new_model
     
 def copy_weights(target_model, source_state_dict):

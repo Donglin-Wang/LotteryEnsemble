@@ -66,7 +66,7 @@ if __name__ == "__main__":
     args.prune_percent = 0.45
     args.batch_size = 4
     
-    global_model = MLP()
+    global_model = create_model(args.dataset, args.arch)
     global_init_model = copy_model(global_model, args.dataset, args.arch)
     
     client_loaders, test_loader = get_data(10, 'mnist', mode='iid', batch_size=args.batch_size)

@@ -33,18 +33,18 @@ def client_update_method1(client_self, global_model, global_init_model):
         train(client_self.model, 
               client_self.train_loader, 
               lr=client_self.args.lr,
-              verbosity=client_self.args.train_verbosity)
+              verbose=client_self.args.train_verbosity)
     
    
     score = evaluate(client_self.model, 
                      client_self.test_loader, 
-                     verbosity=client_self.args.test_verbosity)
+                     verbose=client_self.args.test_verbosity)
     
     if score['Accuracy'][0] > client_self.args.acc_thresh and cur_prune_rate < client_self.args.prune_percent:
         
         prune_fixed_amount(client_self.model, 
                            prune_step,
-                           verbosity=client_self.args.prune_verbosity)
+                           verbose=client_self.args.prune_verbosity)
     
     
     return copy_model(client_self.model, client_self.args.dataset, client_self.args.arch)
@@ -118,7 +118,7 @@ if __name__ == '__main__':
     experiments = [
         # This experiment contains a custom update method that client uses
         {
-            'args': build_args(),
+            'args': build_args(client_epoch=1, comm_rounds=2),
             'client_update': client_update_method1,
             'server_update': None
         },
