@@ -105,6 +105,17 @@ def get_data(num_clients, dataset_name,
                                 train=False,
                                 download=True,
                                 transform=transform)
+
+    elif dataset_name == "cifar100":
+        train_data = tv.datasets.CIFAR100(root="./data", 
+                                 train=True, 
+                                 download=True, 
+                                 transform=transform)
+        test_data = tv.datasets.CIFAR100(root="./data",
+                                train=False,
+                                download=True,
+                                transform=transform)
+
     else:
         print("You did not enter the name of a supported dataset")
         print("Supported datasets: {}, {}".format('"cifar10"', '"mnist"'))
@@ -137,10 +148,13 @@ def get_data(num_clients, dataset_name,
 
 if __name__ == "__main__":
     
-    user_loaders, test_loader = get_data(10, "MNIST")
+    print("Load MNIST 10")
+    user_loaders, test_loader = get_data(10, "mnist")
     assert len(user_loaders) == 10
     
-    users_data, test_loader = get_data(100, "MNIST", mode="non-iid")
+    print("Load MNIST 100")
+
+    users_data, test_loader = get_data(100, "mnist", mode="non-iid")
     print(len(users_data))
     print(len(users_data[-1]))
     for data, label in users_data[0]:
