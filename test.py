@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.utils.prune as prune
 from archs.mnist.mlp import MLP
-from util import prune_fixed_amount, get_prune_params, train, create_model
+from util import prune_fixed_amount, get_prune_params, train, create_model, copy_weights, copy_model, average_weights
 
 # TEST 1: Test whether prunning creates a mask 
 def test1_test_reference():
@@ -159,60 +159,86 @@ def test5_create_model():
     model = create_model('mnist', 'mlp')
     prune_fixed_amount(model, 0)
     
+def test6_copy_weights():
+    def copy_model(model, dataset, arch):
+        new_model = create_model(dataset, arch)
+        source_weights = dict(model.named_parameters())
+        source_buffers = dict(model.named_buffers())
+        for name, param in new_model.named_parameters():
+            param.data.copy_(source_weights[name])
+        for name, buffer in new_model.named_buffers():
+            buffer.data.copy_(source_buffers[name])
+        return new_model
 
-   
+    mlp = MLP()
     
+    print('Before Copying')
+    
+    
+    prune_fixed_amount(mlp, 150000)
+    print(list(mlp.named_buffers()))
+    
+    new_mlp = copy_model(mlp, 'mnist', 'mlp')
+    
+    print('After Copying')
+    # print(list(new_mlp.named_parameters()))
+    print(list(new_mlp.named_buffers()))
+    
+
+
+    
+    
+
 
 
 # Helper Methods
 
-def average_weights(models):
-    with torch.no_grad():
-        weights = []
-        for model in models:
-            weights.append(dict(model.named_parameters()))
+# def average_weights(models):
+#     with torch.no_grad():
+#         weights = []
+#         for model in models:
+#             weights.append(dict(model.named_parameters()))
         
-        avg = copy.deepcopy(weights[0])
-        for key in avg.keys():
-            for i in range(1, len(weights)):
-                avg[key] += weights[i][key]
-            avg[key] = torch.div(avg[key], len(weights))
-    return avg
+#         avg = copy.deepcopy(weights[0])
+#         for key in avg.keys():
+#             for i in range(1, len(weights)):
+#                 avg[key] += weights[i][key]
+#             avg[key] = torch.div(avg[key], len(weights))
+#     return avg
 
 
-def copy_weights(target_model, source_state_dict):
+# def copy_weights(target_model, source_state_dict):
 
-    for name, param in target_model.named_parameters():
-        if name in source_state_dict:
+#     for name, param in target_model.named_parameters():
+#         if name in source_state_dict:
             
-            param.data.copy_(source_state_dict[name].data)
+#             param.data.copy_(source_state_dict[name].data)
 
-def gen_state_dict(model):
-    new_state_dict = collections.OrderedDict()
+# def gen_state_dict(model):
+#     new_state_dict = collections.OrderedDict()
     
-    for name, param in model.named_parameters():
-        if name.endswith('_orig'):
-            new_state_dict[name] = torch.zeros_like(param)
+#     for name, param in model.named_parameters():
+#         if name.endswith('_orig'):
+#             new_state_dict[name] = torch.zeros_like(param)
             
-    return new_state_dict
+#     return new_state_dict
 
-def count_zero_weights(model):
-    layers, num_param = get_prune_params(model)
-    num_zeros = 0
-    for layer, _ in layers:
-        num_zeros += torch.sum(layer.weight == 0.0)
-    return num_zeros
+# def count_zero_weights(model):
+#     layers, num_param = get_prune_params(model)
+#     num_zeros = 0
+#     for layer, _ in layers:
+#         num_zeros += torch.sum(layer.weight == 0.0)
+#     return num_zeros
 
-def finalize_pruning(model):
-    layers, num_param = get_prune_params(model)
-    for layer, _ in layers:
-        prune.remove(layer, 'weight')
+# def finalize_pruning(model):
+#     layers, num_param = get_prune_params(model)
+#     for layer, _ in layers:
+#         prune.remove(layer, 'weight')
     
 
 if __name__ == '__main__':
-   
     
-    
+    print('Test')
     
     # test1_test_reference()
     
@@ -224,27 +250,8 @@ if __name__ == '__main__':
     
     # test5_create_model()
     
-    
-    # mlp = nn.RNN(10, 20, 2)
-    # prune_fixed_amount(mlp, 700)
-    
-    # # TEST 3: Dummy example
+    test6_copy_weights()
     
     
     
-    # # TEST 4: Test on more unusual modules
-   
-    # mlp = MLP()
-    # prune_fixed_amount(mlp, 150000)
-    # print(mlp.state_dict().keys())
-    
-    # rnn = nn.RNN(10, 20, 2)
-    # print(get_prune_params(rnn))
-    # prune_fixed_amount(rnn, 400)
-    # print(list(rnn.named_parameters()))
-    
-    # for name, weight in rnn.named_parameters():
-    #     print(name)
-  
-            
-    
+ 
