@@ -11,9 +11,10 @@ from tabulate import tabulate
 import torch.nn.utils.prune as prune
 
 
-def average_weights(models, dataset, arch):
-    new_model = create_model(dataset, arch)
+def average_weights(models, dataset, arch, data_nums):
+    new_model = copy_model(models[0], dataset, arch)
     num_models = len(models)
+    num_data_total = sum(data_nums)
     with torch.no_grad():
         # Getting all the weights and masks from original models
         weights, masks = [], []
@@ -22,27 +23,27 @@ def average_weights(models, dataset, arch):
             masks.append(dict(models[i].named_buffers()))
         # Averaging weights
         for name, param in new_model.named_parameters():
-            for i in range(num_models):
-                param.data.copy_(param.data + weights[i][name])
-            avg = torch.div(param.data, num_models)
+            for i in range(1, num_models):
+                weighted_param = torch.mul(weights[i][name], data_nums[i])
+                param.data.copy_(param.data + weighted_param)
+            avg = torch.div(param.data, num_data_total)
             param.data.copy_(avg)
         # Averaging masks
         for name, buffer in new_model.named_buffers():
-            for i in range(num_models):
-                buffer.data.copy_(buffer.data + masks[i][name])
+            for i in range(1, num_models):
+                weighted_masks = torch.mul(masks[i][name], data_nums[i])
+                buffer.data.copy_(buffer.data + weighted_masks)
             avg = torch.div(buffer.data, num_models)
             
-            # Clipping all the values to [0.0, 1.0]. This might
-            # seems trivial, but if you don't do this, you will get an 
-            # error message saying that there's not parameters to prune.
+            # The code below clips all the values to [0.0, 1.0] of the new model. 
+            # This might seems trivial, but if you don't do this, you will get
+            # an error message saying that there's not parameters to prune.
             # This has something to do with how pruning is handled internally
             
             avg = torch.clamp(avg, 0.0, 1.0)
             avg = torch.round(avg)
             buffer.data.copy_(avg)
     return new_model
-
-
 
 def copy_model(model, dataset, arch):
     new_model = create_model(dataset, arch)
@@ -219,8 +220,6 @@ def get_prune_summary(model):
     
     return num_global_zeros, num_global_weights
         
-    
-    
 def get_prune_params(model):
     layers = []
     

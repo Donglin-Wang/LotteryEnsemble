@@ -13,6 +13,10 @@ class Server():
         self.frac = args.frac
         self.clients = clients
         self.server_update_method = server_update_method
+        self.client_data_num = []
+        
+        for client in self.clients:
+            self.client_data_num.append(len(client.train_loader))
         
         # The extra 1 entry in client_models and global_models are used to store
         # the results after last communication round
@@ -60,7 +64,10 @@ class Server():
                     self.client_models[i][j] = copy_model(self.clients[j].model, self.args.dataset, self.args.arch)
             
             models = self.client_models[i][idx_list]
-            self.global_models[i] = average_weights(models, self.args.dataset, self.args.arch)
+            self.global_models[i] = average_weights(models, 
+                                                    self.args.dataset, 
+                                                    self.args.arch,
+                                                    self.client_data_num)
 
 # This is a dummy test to see if the server works
 if __name__ == '__main__':
