@@ -266,13 +266,25 @@ def calculate_metrics(score, ytrue, yraw, ypred):
     if 'Balanced Accuracy' in score:
         score['Balanced Accuracy'].append(skmetrics.balanced_accuracy_score(ytrue, ypred))
     if 'Precision Micro' in score:
-        score['Precision Micro'].append(skmetrics.precision_score(ytrue, ypred, average='micro'))
+        score['Precision Micro'].append(skmetrics.precision_score(ytrue, 
+                                                                  ypred, 
+                                                                  average='micro',
+                                                                  zero_division=0))
     if 'Recall Micro' in score:
-        score['Recall Micro'].append(skmetrics.recall_score(ytrue, ypred, average='micro'))
+        score['Recall Micro'].append(skmetrics.recall_score(ytrue, 
+                                                            ypred, 
+                                                            average='micro',
+                                                            zero_division=0))
     if 'Precision Macro' in score:
-        score['Precision Macro'].append(skmetrics.precision_score(ytrue, ypred, average='macro'))
+        score['Precision Macro'].append(skmetrics.precision_score(ytrue, 
+                                                                  ypred, 
+                                                                  average='macro',
+                                                                  zero_division=0))
     if 'Recall Macro' in score:
-        score['Recall Macro'].append(skmetrics.recall_score(ytrue, ypred, average='macro'))
+        score['Recall Macro'].append(skmetrics.recall_score(ytrue, 
+                                                            ypred, 
+                                                            average='macro',
+                                                            zero_division=0))
     
     return score
         
