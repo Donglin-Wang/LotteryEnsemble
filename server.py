@@ -36,16 +36,17 @@ class Server():
     def default_server_update(self):
         
         # For each client, 0 means no update and 1 means update
-        update_or_not = [0] * self.num_clients
+       
         
         # Recording the update and storing them in record
         for i in range(1, self.comm_rounds+1):
-            
+            update_or_not = [0] * self.num_clients
             # Randomly select a fraction of users to update
             num_selected_clients = max(int(self.frac * self.num_clients), 1)
             idx_list = np.random.choice(range(self.num_clients), num_selected_clients)
             for idx in idx_list:
                 update_or_not[idx] = 1
+            print(idx_list)
             
             print('-------------------------------------', flush=True)
             print(f'Communication Round #{i}', flush=True)
@@ -59,7 +60,7 @@ class Server():
                     self.client_models[i][j] = copy_model(self.clients[j].model, self.args.dataset, self.args.arch)
             
             models = self.client_models[i][idx_list]
-            self.global_models[i] = average_weights(models)
+            self.global_models[i] = average_weights(models, self.args.dataset, self.args.arch)
 
 # This is a dummy test to see if the server works
 if __name__ == '__main__':

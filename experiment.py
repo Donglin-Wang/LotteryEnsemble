@@ -27,6 +27,9 @@ def client_update_method1(client_self, global_model, global_init_model):
     cur_prune_rate = num_pruned / num_params
     prune_step = math.floor(num_params * client_self.args.prune_step)
     
+    score = evaluate(client_self.model, 
+                     client_self.test_loader, 
+                     verbose=client_self.args.test_verbosity)
     
     for i in range(client_self.args.client_epoch):
         print(f'Epoch {i+1}')
@@ -35,10 +38,8 @@ def client_update_method1(client_self, global_model, global_init_model):
               lr=client_self.args.lr,
               verbose=client_self.args.train_verbosity)
     
-   
-    score = evaluate(client_self.model, 
-                     client_self.test_loader, 
-                     verbose=client_self.args.test_verbosity)
+    print(client_self.model)
+    
     
     if score['Accuracy'][0] > client_self.args.acc_thresh and cur_prune_rate < client_self.args.prune_percent:
         
@@ -118,16 +119,19 @@ if __name__ == '__main__':
     experiments = [
         # This experiment contains a custom update method that client uses
         {
-            'args': build_args(client_epoch=1, comm_rounds=2),
+            'args': build_args(client_epoch=1, comm_rounds=2, frac=0.2, acc_thresh=0.1),
             'client_update': client_update_method1,
             'server_update': None
         },
-        # This exepriment's setting is all default
-        {
-            'args': build_args(),
-            'client_update': None,
-            'server_update': None
-        }
+        # # This exepriment's setting is all default
+        # {
+        #     'args': build_args(client_epoch=1, 
+        #                        comm_rounds=2, 
+        #                        frac=0.2,
+        #                        acc_thresh=0.2),
+        #     'client_update': None,
+        #     'server_update': None
+        # }
     ]
     
     for experiment in experiments:

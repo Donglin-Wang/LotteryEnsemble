@@ -183,58 +183,30 @@ def test6_copy_weights():
     print('After Copying')
     # print(list(new_mlp.named_parameters()))
     print(list(new_mlp.named_buffers()))
-    
-
-
-    
-    
-
-
-
-# Helper Methods
-
-# def average_weights(models):
-#     with torch.no_grad():
-#         weights = []
-#         for model in models:
-#             weights.append(dict(model.named_parameters()))
-        
-#         avg = copy.deepcopy(weights[0])
-#         for key in avg.keys():
-#             for i in range(1, len(weights)):
-#                 avg[key] += weights[i][key]
-#             avg[key] = torch.div(avg[key], len(weights))
-#     return avg
-
-
-# def copy_weights(target_model, source_state_dict):
-
-#     for name, param in target_model.named_parameters():
-#         if name in source_state_dict:
-            
-#             param.data.copy_(source_state_dict[name].data)
-
-# def gen_state_dict(model):
-#     new_state_dict = collections.OrderedDict()
-    
-#     for name, param in model.named_parameters():
-#         if name.endswith('_orig'):
-#             new_state_dict[name] = torch.zeros_like(param)
-            
-#     return new_state_dict
-
-# def count_zero_weights(model):
-#     layers, num_param = get_prune_params(model)
-#     num_zeros = 0
-#     for layer, _ in layers:
-#         num_zeros += torch.sum(layer.weight == 0.0)
-#     return num_zeros
-
-# def finalize_pruning(model):
-#     layers, num_param = get_prune_params(model)
-#     for layer, _ in layers:
-#         prune.remove(layer, 'weight')
-    
+ 
+def test7_average_weights():
+    def average_weights(models, dataset, arch, data_len):
+        new_model = create_model(dataset, arch)
+        num_models = len(models)
+        with torch.no_grad():
+            # Getting all the weights and masks from original models
+            weights, masks = [], []
+            for i in range(num_models):
+                weights.append(dict(models[i].named_parameters()))
+                masks.append(dict(models[i].named_buffers()))
+            # Averaging weights
+            for name, param in new_model.named_parameters():
+                for i in range(num_models):
+                    param.data.copy_(param.data + weights[i])
+                avg = torch.div(param.data, num_models)
+                param.data.copy_(avg)
+            # Averaging masks
+            for name, buffer in new_model.named_buffers():
+                for i in range(num_models):
+                    buffer.data.copy_(buffer.data + masks[i])
+                avg = torch.div(buffer.data, num_models)
+                buffer.data.copy_(avg)
+        return new_model
 
 if __name__ == '__main__':
     
@@ -251,6 +223,8 @@ if __name__ == '__main__':
     # test5_create_model()
     
     test6_copy_weights()
+    
+    test7_average_weights()
     
     
     

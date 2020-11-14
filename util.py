@@ -6,24 +6,41 @@ import torch.nn as nn
 import torch.optim as optim
 from sklearn import metrics as skmetrics
 
-
 from tqdm import tqdm
 from tabulate import tabulate
 import torch.nn.utils.prune as prune
 
 
-def average_weights(models):
+def average_weights(models, dataset, arch):
+    new_model = create_model(dataset, arch)
+    num_models = len(models)
     with torch.no_grad():
-        weights = []
-        for model in models:
-            weights.append(dict(model.named_parameters()))
-        
-        avg = copy.deepcopy(weights[0])
-        for key in avg.keys():
-            for i in range(1, len(weights)):
-                avg[key] += weights[i][key]
-            avg[key] = torch.div(avg[key], len(weights))
-    return avg
+        # Getting all the weights and masks from original models
+        weights, masks = [], []
+        for i in range(num_models):
+            weights.append(dict(models[i].named_parameters()))
+            masks.append(dict(models[i].named_buffers()))
+        # Averaging weights
+        for name, param in new_model.named_parameters():
+            for i in range(num_models):
+                param.data.copy_(param.data + weights[i][name])
+            avg = torch.div(param.data, num_models)
+            param.data.copy_(avg)
+        # Averaging masks
+        for name, buffer in new_model.named_buffers():
+            for i in range(num_models):
+                buffer.data.copy_(buffer.data + masks[i][name])
+            avg = torch.div(buffer.data, num_models)
+            
+            # Clipping all the values to [0.0, 1.0]. This might
+            # seems trivial, but if you don't do this, you will get an 
+            # error message saying that there's not parameters to prune.
+            # This has something to do with how pruning is handled internally
+            
+            avg = torch.clamp(avg, 0.0, 1.0)
+            avg = torch.round(avg)
+            buffer.data.copy_(avg)
+    return new_model
 
 
 
@@ -158,7 +175,7 @@ def evaluate(model, data_loader, verbose=True):
     if verbose:
         print('Evaluation Score: ')   
         print(tabulate(score, headers='keys', tablefmt='github'), flush=True)
-    
+    model.train()
     torch.enable_grad()
     return score
 
