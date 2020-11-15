@@ -36,15 +36,28 @@ def expand_experiment(dict):
     return runs
 
 
+def get_name(exp):
+    return f"{exp['algo']}_{exp['data']}_R{exp['R']}_C{exp['C']}_K{exp['K']}_E{exp['E']}_B{exp['B']}_eta{exp['eta']}"
+
+
 def run(dict):
+    exp_name = get_name(dict)
     experiments = expand_experiment(dict)
     results = []
     for exp in experiments:
         print(exp)
+        run_name = get_name(exp)
+        history = {}
+        history['experiment'] = exp_name
+        history['run'] = run_name
+
         fm = Foreman(exp)
-        results.append(fm.run())
+        history = {**history, **fm.run()} # merge dictionaries
+        results.append(history)
+
     for r in results:
         print(r)
+    return results
 
 
 if __name__ == '__main__':
@@ -60,5 +73,7 @@ if __name__ == '__main__':
         "B": 64,
         "eta": 0.01 
         }'''
+    print(get_name(json.loads(str)))
     for e in expand_experiment(json.loads(str)):
+        print(get_name(e))
         print(e)
