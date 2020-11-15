@@ -1,10 +1,15 @@
+import numpy as np
+
+
 def expand_experiment(dict):
     exp = {}
     for k, v in dict.items():
         expand = False
         if isinstance(v, list):
-            exp[k] = list(range(v[0], v[1], v[2]))
-            print(exp[k])
+            if isinstance(v[0], int):
+                exp[k] = list(np.linspace(v[0], v[1], v[2]).astype(int))
+            else:
+                exp[k] = list(np.around(np.linspace(v[0], v[1], v[2]), 4))
         else:
             exp[k] = [v]
 
@@ -27,6 +32,7 @@ def expand_experiment(dict):
                                                   'eta': eta})
     return runs
 
+
 if __name__ == '__main__':
     import json
 
@@ -34,9 +40,9 @@ if __name__ == '__main__':
         "algo": "FedAvg",
         "data": "MNIST_IID",
         "R": 2,
-        "C": 0.5,
-        "K": [2, 7, 2],
-        "E": [4, 42, 37],
+        "C": [0.3, 0.9, 3],
+        "K": [2, 6, 3],
+        "E": 10,
         "B": 64,
         "eta": 0.01 
         }'''
