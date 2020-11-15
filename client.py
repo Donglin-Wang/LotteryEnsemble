@@ -2,7 +2,12 @@ import math
 from util import train, evaluate, prune_fixed_amount, copy_model, create_model, get_prune_summary
 
 class Client:
-    def __init__(self, args, train_loader, test_loader, client_update_method=None):
+    def __init__(self, 
+                 args, 
+                 train_loader, 
+                 test_loader, 
+                 client_update_method=None, 
+                 client_id=None):
         
         self.args = args
         self.model = create_model(self.args.dataset, self.args.arch)
@@ -10,6 +15,7 @@ class Client:
         self.client_update_method = client_update_method
         self.test_loader = test_loader
         self.train_loader = train_loader
+        self.client_id = client_id
         
         assert self.model, "Something went wrong and the model cannot be initialized"
         
@@ -20,7 +26,7 @@ class Client:
             return self.default_client_update_method(global_model, global_init_weight)
         
     def default_client_update_method(self, global_model, global_init_model):
-        
+        print(f'***** Client #{self.client_id} *****', flush=True)
         self.model = copy_model(global_model,
                                 self.args.dataset,
                                 self.args.arch)
@@ -48,34 +54,3 @@ class Client:
             
         
         return copy_model(self.model, self.args.dataset, self.args.arch)
-
-# This is a dummmy test to make sure that Client is running properly
-if __name__ == "__main__":
-    from datasource import get_data
-    from archs.mnist.mlp import MLP
-    
-    
-    # Creating an empty object to which we can add any attributes
-    args = type('', (), {})()
-    
-    args.dataset = 'mnist'
-    args.arch = 'mlp'
-    args.lr = 0.001
-    args.client_epoch = 3
-    args.prune_type = 'reinit'
-    args.prune_percent = 0.45
-    args.batch_size = 4
-    
-    global_model = create_model(args.dataset, args.arch)
-    global_init_model = copy_model(global_model, args.dataset, args.arch)
-    
-    client_loaders, test_loader = get_data(10, 'mnist', mode='iid', batch_size=args.batch_size)
-    
-    client = Client(args, client_loaders[0], test_loader)
-    for i in range(2):
-        global_model = client.client_update(global_model, global_init_model)
-    # client.train(global_model, 5)
-    
-    
-    
-    
