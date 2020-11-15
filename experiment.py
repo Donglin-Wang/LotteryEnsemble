@@ -115,22 +115,22 @@ def run_experiment(args, client_update, server_update):
 if __name__ == '__main__':
     
     experiments = [
-        # This experiment contains a custom update method that client uses
+        # This exepriment's setting is all default
         {
             'args': build_args(client_epoch=1, 
-                               comm_rounds=2, 
-                               frac=0.2, 
-                               acc_thresh=0.1),
-            'client_update': client_update_method1,
+                                comm_rounds=2, 
+                                frac=0.2,
+                                acc_thresh=0.2),
+            'client_update': None,
             'server_update': None
         },
-        # # This exepriment's setting is all default
+        # # This experiment contains a custom update method that client uses
         # {
         #     'args': build_args(client_epoch=1, 
         #                        comm_rounds=2, 
-        #                        frac=0.2,
-        #                        acc_thresh=0.2),
-        #     'client_update': None,
+        #                        frac=0.2, 
+        #                        acc_thresh=0.1),
+        #     'client_update': client_update_method1,
         #     'server_update': None
         # }
     ]

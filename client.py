@@ -1,5 +1,6 @@
 import math
-from util import train, evaluate, prune_fixed_amount, copy_model, create_model, get_prune_summary
+from util import train, evaluate, prune_fixed_amount, copy_model, \
+                 create_model, get_prune_summary, log_obj
 
 class Client:
     def __init__(self, 
@@ -16,6 +17,7 @@ class Client:
         self.test_loader = test_loader
         self.train_loader = train_loader
         self.client_id = client_id
+        self.log_path = f'./log/clients/client{self.client_id}/'
         
         assert self.model, "Something went wrong and the model cannot be initialized"
         
@@ -46,11 +48,14 @@ class Client:
                                verbose=self.args.prune_verbosity)
         
         for i in range(self.args.client_epoch):
+            
             print(f'Epoch {i+1}')
             train(self.model, 
                   self.train_loader, 
                   lr=self.args.lr,
                   verbose=self.args.train_verbosity)
+            epoch_path = self.log_path + f'client_model_epoch{i}.torch'
+            log_obj(epoch_path, self.model)
             
         
         return copy_model(self.model, self.args.dataset, self.args.arch)
