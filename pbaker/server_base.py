@@ -15,7 +15,10 @@ class ServerBase(ABC):
         self.shapes = [layer.shape for layer in self.weights]
 
     def _sampleClients(self):
-        return self.clients
+        choices = np.random.choice(self.hyper_params['K'],
+                                   max(1, int(self.hyper_params['C']*self.hyper_params['K'])),
+                                   replace=False)
+        return [self.clients[i] for i in choices]
 
     def _flatten(weights):
         return np.concatenate([layer.reshape(1, -1) for layer in weights], axis=1)
