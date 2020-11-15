@@ -1,3 +1,4 @@
+import numpy as np
 import tensorflow as tf
 from models import create_MNIST_model
 from data import split_data
@@ -60,15 +61,29 @@ class Foreman():
                                          self.X_train, self.y_train)
 
     def run(self):
-        print("Foreman: run with initial weights")
-        self.global_model.evaluate(self.X_train, self.y_train)
+        result = {}
+        r = self.global_model.evaluate(self.X_train, self.y_train)
+        result['server_loss_initial'] = r[0]
+        result['server_acc_initial']  = r[1]
 
         self.server.run()
-        print("Foreman: run with trained global model")
         self.global_model.set_weights(self.server.get_weights())
-        self.global_model.evaluate(self.X_train, self.y_train)
+        r = self.global_model.evaluate(self.X_train, self.y_train)
+        result['server_loss_final'] = r[0]
+        result['server_acc_final']  = r[1]
 
         # we evaluate final client and server model performance at this point
-        print("Foreman: rerun with initial weights")
         self.global_model.set_weights(self.initial_weights)
-        self.global_model.evaluate(self.X_train, self.y_train)
+        r = self.global_model.evaluate(self.X_train, self.y_train)
+
+        losses = np.zeros((self.params['K']))
+        accuracies = np.zeros((self.params['K']))
+        for i, c in enumerate(self.clients):
+            r = c.evaluate()
+            losses[i]     = r[0]
+            accuracies[i] = r[1]
+        result['client_loss_final'] = losses.mean()
+        result['client_acc_final']  = accuracies.mean()
+
+
+        return result

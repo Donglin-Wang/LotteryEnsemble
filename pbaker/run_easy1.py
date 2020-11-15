@@ -14,4 +14,4 @@ fm = Foreman({
     'B': 64,
     'eta': 0.01 # currently unused
     })
-fm.run()
+print(fm.run())

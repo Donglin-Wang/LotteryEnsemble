@@ -14,3 +14,7 @@ class ClientBase:
 
     def sample_size(self):
         return self.X.shape[0]
+
+
+    def evaluate(self):
+        return self.model.evaluate(self.X, self.y)

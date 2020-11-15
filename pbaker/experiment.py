@@ -38,10 +38,14 @@ def expand_experiment(dict):
 
 def run(dict):
     experiments = expand_experiment(dict)
+    results = []
     for exp in experiments:
         print(exp)
         fm = Foreman(exp)
-        fm.run()
+        results.append(fm.run())
+    for r in results:
+        print(r)
+
 
 if __name__ == '__main__':
     import json
