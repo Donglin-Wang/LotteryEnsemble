@@ -63,12 +63,14 @@ def test4_log_and_load():
 
 if __name__ == '__main__':
     
-    print('Test')
+    print('Running tests...')
     
     # test1_log_obj()
     
     # test2_read_obj()
     
-    test3_prune_pickle()
+    # test3_prune_pickle()
     
-    test4_log_and_load()
+    # test4_log_and_load()
+    
+    

@@ -3,3 +3,4 @@ scratchpaper.py
 data/
 .ipynb_checkpoints/
 __pycache__/
+log/
