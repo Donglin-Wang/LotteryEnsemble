@@ -1,5 +1,5 @@
 import numpy as np
-from util import average_weights, create_model, copy_model
+from util import average_weights, create_model, copy_model, log_obj
 
 class Server():
     
@@ -12,6 +12,7 @@ class Server():
         self.clients = clients
         self.server_update_method = server_update_method
         self.client_data_num = []
+        self.elapsed_comm_rounds = 0
         
         for client in self.clients:
             self.client_data_num.append(len(client.train_loader))
@@ -36,10 +37,7 @@ class Server():
             self.default_server_update()
             
     def default_server_update(self):
-        
-        # For each client, 0 means no update and 1 means update
-       
-        
+        self.elapsed_comm_rounds += 1
         # Recording the update and storing them in record
         for i in range(1, self.comm_rounds+1):
             update_or_not = [0] * self.num_clients
@@ -64,4 +62,9 @@ class Server():
                                                     self.args.dataset, 
                                                     self.args.arch,
                                                     self.client_data_num)
+            client_model_path = f'./log/server/client_models/client_models_round{self.elapsed_comm_rounds}.model_list'
+            server_model_path = f'./log/server/server_models/average_model_round{self.elapsed_comm_rounds}.model_list'
+            log_obj(client_model_path, self.client_models)
+            log_obj(server_model_path, self.global_models)
+            
 

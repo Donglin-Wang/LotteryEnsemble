@@ -17,7 +17,8 @@ class Client:
         self.test_loader = test_loader
         self.train_loader = train_loader
         self.client_id = client_id
-        self.log_path = f'./log/clients/client{self.client_id}/'
+        self.elapsed_comm_rounds = 0
+        
         
         assert self.model, "Something went wrong and the model cannot be initialized"
         
@@ -28,6 +29,7 @@ class Client:
             return self.default_client_update_method(global_model, global_init_weight)
         
     def default_client_update_method(self, global_model, global_init_model):
+        self.elapsed_comm_rounds += 1
         print(f'***** Client #{self.client_id} *****', flush=True)
         self.model = copy_model(global_model,
                                 self.args.dataset,
@@ -48,13 +50,13 @@ class Client:
                                verbose=self.args.prune_verbosity)
         
         for i in range(self.args.client_epoch):
-            
+            log_path = f'./log/clients/client{self.client_id}/round{self.elapsed_comm_rounds}/'
             print(f'Epoch {i+1}')
             train(self.model, 
                   self.train_loader, 
                   lr=self.args.lr,
                   verbose=self.args.train_verbosity)
-            epoch_path = self.log_path + f'client_model_epoch{i}.torch'
+            epoch_path = log_path + f'client_model_epoch{i}.torch'
             log_obj(epoch_path, self.model)
             
         
