@@ -62,7 +62,7 @@ class Server():
                                                     self.args.dataset, 
                                                     self.args.arch,
                                                     self.client_data_num)
-            client_model_path = f'./log/server/client_models/client_models_round{self.elapsed_comm_rounds}.model_list'
+            client_model_path = './log/server/client_models/client_models.model_list'
             server_model_path = f'./log/server/server_models/average_model_round{self.elapsed_comm_rounds}.model_list'
             log_obj(client_model_path, self.client_models)
             log_obj(server_model_path, self.global_models)

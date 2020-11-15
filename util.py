@@ -135,7 +135,7 @@ def train(model,
         print("Average scores for the epoch: ")
         print(tabulate(average_scores, headers='keys', tablefmt='github'))
     
-    return average_scores
+    return score
 
 def evaluate(model, data_loader, verbose=True):
     # Swithicing off gradient calculation to save memory

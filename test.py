@@ -7,18 +7,18 @@ def test1_log_obj():
     
     # Logging a PyTorch model
     mlp = MLP()
-    log_obj('./log/clients/client1/epoch1_model.pickle', mlp)
+    log_obj('./log_test/clients/client1/epoch1_model.pickle', mlp)
 
     # Logging a list of models
     models = [MLP() for i in range(10)]
-    log_obj('./log/server/round1_client_models.pickle', models)
+    log_obj('./log_test/server/round1_client_models.pickle', models)
     
 # TEST 2: Test if the logged objects can be correctly read from files
 
 def test2_read_obj():
     import pickle
     
-    file = open('./log/server/round1_client_models.pickle', 'rb')
+    file = open('./log_test/server/round1_client_models.pickle', 'rb')
     obj = pickle.load(file)
     if isinstance(obj, list):
         for model in obj:
@@ -36,9 +36,9 @@ def test3_prune_pickle():
     
     mlp = MLP()
     
-    log_obj('./log/clients/client1/epoch1_model.torch', mlp)
+    log_obj('./log_test/clients/client1/epoch1_model.torch', mlp)
     
-    with open('./log/clients/client1/epoch1_model.torch', 'rb') as file:
+    with open('./log_test/clients/client1/epoch1_model.torch', 'rb') as file:
         model = torch.load(file)
         print(model)
         
@@ -54,12 +54,24 @@ def test4_log_and_load():
     mlp = MLP()
     prune_fixed_amount(mlp, 150000, verbose=False)
     
-    log_obj('./log/clients/client1/epoch1_model.torch', mlp)
+    log_obj('./log_test/clients/client1/epoch1_model.torch', mlp)
     
-    with open('./log/clients/client1/epoch1_model.torch', 'rb') as file:
+    with open('./log_test/clients/client1/epoch1_model.torch', 'rb') as file:
         model = torch.load(file)
         print(list(model.named_buffers()))
 
+# TEST 5: Test the file size that contains a list of 400 models
+# NOTE: In the LotteryFL paper, the MNIST experiment is run with 400 clients
+#       over 2000 epochs. A list 400 clients takes about 2.5GB of hardrive 
+#       space
+def test5_test_model_list_size():
+    import os
+    from util import log_obj, create_model
+    models = [create_model('mnist', 'mlp') for _ in range(400)]
+    log_obj('./log_test/server/400_models_list.model_list', models)
+    filesize = os.path.getsize('./log_test/server/400_models_list.model_list')
+    byte_per_gb = 1E9
+    print(f'The log file size is {filesize/byte_per_gb}GB')
 
 if __name__ == '__main__':
     
@@ -72,5 +84,7 @@ if __name__ == '__main__':
     # test3_prune_pickle()
     
     # test4_log_and_load()
+    
+    test5_test_model_list_size()
     
     
