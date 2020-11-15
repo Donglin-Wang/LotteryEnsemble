@@ -1,4 +1,5 @@
 import numpy as np
+from foreman import Foreman
 
 
 def expand_experiment(dict):
@@ -8,8 +9,10 @@ def expand_experiment(dict):
         if isinstance(v, list):
             if isinstance(v[0], int):
                 exp[k] = list(np.linspace(v[0], v[1], v[2]).astype(int))
-            else:
+            elif isinstance(v[0], float):
                 exp[k] = list(np.around(np.linspace(v[0], v[1], v[2]), 4))
+            else:
+                assert False, "Experiments can only iterate over ints and floats."
         else:
             exp[k] = [v]
 
@@ -23,7 +26,7 @@ def expand_experiment(dict):
                             for B in exp['B']:
                                 for eta in exp['eta']:
                                     runs.append({'algo': algo,
-                                                 'data': eta,
+                                                 'data': data,
                                                   'R': R,
                                                   'C': C,
                                                   'K': K,
@@ -32,6 +35,13 @@ def expand_experiment(dict):
                                                   'eta': eta})
     return runs
 
+
+def run(dict):
+    experiments = expand_experiment(dict)
+    for exp in experiments:
+        print(exp)
+        fm = Foreman(exp)
+        fm.run()
 
 if __name__ == '__main__':
     import json
