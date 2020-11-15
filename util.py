@@ -1,5 +1,7 @@
+import os
 import sys
-import copy
+import errno
+import pickle
 
 import torch
 import torch.nn as nn
@@ -287,6 +289,21 @@ def calculate_metrics(score, ytrue, yraw, ypred):
                                                             zero_division=0))
     
     return score
+        
+def log_obj(path, obj):
+    
+    if not os.path.exists(os.path.dirname(path)):
+        try:
+            os.makedirs(os.path.dirname(path))
+        except OSError as exc: # Guard against race condition
+            if exc.errno != errno.EEXIST:
+                raise
+                
+    with open(path, 'wb') as file:
+        if isinstance(obj, nn.Module):
+            torch.save(obj, file)
+        else:
+            pickle.dump(obj, file)
         
         
    
