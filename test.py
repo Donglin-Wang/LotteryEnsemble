@@ -73,6 +73,21 @@ def test5_test_model_list_size():
     byte_per_gb = 1E9
     print(f'The log file size is {filesize/byte_per_gb}GB')
 
+# TEST 6: Tes whether copying model affects the pruning
+
+def test6_prune_again():
+    from archs.mnist.mlp import MLP
+    from util import copy_model, prune_fixed_amount
+    
+    mlp = MLP()
+    
+    prune_fixed_amount(mlp, 150000)
+    
+    new_mlp = copy_model(mlp, 'mnist', 'mlp')
+    
+    prune_fixed_amount(new_mlp, 10000)
+    
+
 if __name__ == '__main__':
     
     print('Running tests...')
@@ -85,6 +100,9 @@ if __name__ == '__main__':
     
     # test4_log_and_load()
     
-    test5_test_model_list_size()
+    # test5_test_model_list_size()
+    
+    test6_prune_again()
+    
     
     
