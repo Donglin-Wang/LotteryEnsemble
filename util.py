@@ -32,35 +32,30 @@ def average_weights(models, dataset, arch, data_nums):
             param.data.copy_(avg)
         # Averaging masks
         for name, buffer in new_model.named_buffers():
-            for i in range(1, num_models):
-                weighted_masks = torch.mul(masks[i][name], data_nums[i])
-                buffer.data.copy_(buffer.data + weighted_masks)
-            avg = torch.div(buffer.data, num_models)
-            
-            # The code below clips all the values to [0.0, 1.0] of the new model. 
+            # for i in range(1, num_models):
+            #     weighted_masks = torch.mul(masks[i][name], data_nums[i])
+            #     buffer.data.copy_(buffer.data + weighted_masks)
+            avg = torch.ones_like(buffer.data)
+
+            # The code below clips all the values to [0.0, 1.0] of the new model.
             # This might seems trivial, but if you don't do this, you will get
             # an error message saying that there's not parameters to prune.
             # This has something to do with how pruning is handled internally
-            
-            avg = torch.clamp(avg, 0.0, 1.0)
-            avg = torch.round(avg)
+
+            #avg = torch.clamp(avg, 0.0, 1.0)
+            #avg = torch.round(avg)
             buffer.data.copy_(avg)
     return new_model
 
-def copy_model(model, dataset, arch):
+def copy_model(model, dataset, arch, source_buff=None):
     new_model = create_model(dataset, arch)
     source_weights = dict(model.named_parameters())
-    source_buffers = dict(model.named_buffers())
+    source_buffers = source_buff if source_buff else dict(model.named_buffers())
     for name, param in new_model.named_parameters():
         param.data.copy_(source_weights[name])
     for name, buffer in new_model.named_buffers():
         buffer.data.copy_(source_buffers[name])
     return new_model
-    
-def copy_weights(target_model, source_state_dict):
-    for name, param in target_model.named_parameters():
-        if name in source_state_dict:
-            param.data.copy_(source_state_dict[name].data)
 
 def create_model(dataset_name, model_type):
     

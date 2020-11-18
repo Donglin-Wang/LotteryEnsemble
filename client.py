@@ -33,7 +33,8 @@ class Client:
         print(f'***** Client #{self.client_id} *****', flush=True)
         self.model = copy_model(global_model,
                                 self.args.dataset,
-                                self.args.arch)
+                                self.args.arch,
+                                dict(self.model.named_buffers()))
         
         num_pruned, num_params = get_prune_summary(self.model)
         cur_prune_rate = num_pruned / num_params

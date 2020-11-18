@@ -117,13 +117,16 @@ if __name__ == '__main__':
     experiments = [
         # This exepriment's setting is all default
         {
-            'args': build_args(client_epoch=10, 
-                                comm_rounds=2, 
-                                frac=0.05,
-                                prune_step=0.2,
-                                acc_thresh=0.5,
-                                batch_size=32,
-                                num_clients=400),
+            'args': build_args(client_epoch=10,
+                               comm_rounds=10,
+                               frac=0.05,
+                               prune_step=0.1,
+                               acc_thresh=0.5,
+                               batch_size=32,
+                               num_clients=400,
+                               train_verbosity=False,
+                               test_verbosity=False,
+                               prune_verbosity=False),
             'client_update': None,
             'server_update': None
         },
