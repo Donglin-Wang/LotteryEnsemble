@@ -1,5 +1,5 @@
 import numpy as np
-from util import average_weights, create_model, copy_model, log_obj
+from util import average_weights, create_model, copy_model
 
 class Server():
     
@@ -62,9 +62,10 @@ class Server():
                                                     self.args.dataset, 
                                                     self.args.arch,
                                                     self.client_data_num)
-            client_model_path = './log/server/client_models/client_models.model_list'
-            server_model_path = f'./log/server/server_models/average_model_round{self.elapsed_comm_rounds}.model_list'
-            log_obj(client_model_path, self.client_models)
-            log_obj(server_model_path, self.global_models)
+            
+            # client_model_path = './log/server/client_models/client_models.model_list'
+            # server_model_path = f'./log/server/server_models/average_model_round{self.elapsed_comm_rounds}.model_list'
+            # log_obj(client_model_path, self.client_models)
+            # log_obj(server_model_path, self.global_models)
             
 

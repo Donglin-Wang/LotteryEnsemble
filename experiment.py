@@ -53,7 +53,7 @@ def client_update_method1(client_self, global_model, global_init_model):
 # If you want to change the default values, change it here in the funciton signature
 def build_args(arch='mlp',
                dataset='mnist',
-               data_split='iid',
+               data_split='non-iid',
                num_clients=10,
                lr=0.001,
                batch_size=4,
@@ -104,7 +104,7 @@ def run_experiment(args, client_update, server_update):
     for i in range(args.num_clients):
         clients.append(Client(args, 
                               client_loaders[i], 
-                              test_loader, 
+                              test_loader[i], 
                               client_update_method=client_update,
                               client_id=i))
     

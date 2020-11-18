@@ -3,6 +3,7 @@ import random
 import torch
 import torchvision as tv
 import torchvision.transforms as tf
+from sklearn.utils import shuffle
 
 # Given each user euqal number of samples if possible. If not, the last user 
 # gets whatever is left after other users had their shares
@@ -63,7 +64,6 @@ def non_iid_split(num_clients,
     sample_bin_idx_test = np.array_split(sorted_idx_test, num_clients * 2)
     np.random.seed(rand_num)
     sample_bin_idx_test = np.random.permutation(sample_bin_idx_test)           
-    num_bins_test = len(sample_bin_idx_test)
 
     #Training data loaders
     user_loaders = []
@@ -71,13 +71,17 @@ def non_iid_split(num_clients,
     test_loaders = []
     
     for i in range(0, num_bins, 2):
+        
         client_data_idx = sample_bin_idx[i]
 
         client_test_data_idx = sample_bin_idx_test[i]
-
+        
         if i + 1 < num_bins:
             client_data_idx = np.append(client_data_idx, sample_bin_idx[i+1])
             client_test_data_idx = np.append(client_test_data_idx, sample_bin_idx_test[i+1])
+            
+        client_data_idx = shuffle(client_data_idx)
+        client_test_data_idx = shuffle(client_test_data_idx)
             
         #Trainning data
         cur_sampler = torch.utils.data.BatchSampler(client_data_idx, 
@@ -95,8 +99,6 @@ def non_iid_split(num_clients,
         cur_loader_test = torch.utils.data.DataLoader(test_data,
                                                  batch_sampler=cur_sampler_test)
         test_loaders.append(cur_loader_test)
-
-
 
     return user_loaders, test_loaders
 
@@ -192,7 +194,7 @@ if __name__ == "__main__":
     #assert len(user_loaders) == 10
     
     print("Load MNIST 10 non-iid")
-    users_data, test_loader = get_data(10, "mnist", mode="non-iid")
+    users_data, test_loader = get_data(400, "mnist", mode="non-iid", batch_size=32)
     print(len(users_data))
     print(len(test_loader))
 
