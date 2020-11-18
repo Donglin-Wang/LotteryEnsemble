@@ -62,12 +62,12 @@ def build_args(arch='mlp',
                client_epoch=10,
                acc_thresh=0.5,
                prune_iterations=None,
-               prune_percent=0.45,
+               prune_percent=0.75,
                prune_step=0.15,
                prune_type=None,
-               train_verbosity=True,
-               test_verbosity=True,
-               prune_verbosity=True,
+               train_verbosity=False,
+               test_verbosity=False,
+               prune_verbosity=False,
                val_freq=0
                ):
     
@@ -108,22 +108,21 @@ def run_experiment(args, client_update, server_update):
                               client_update_method=client_update,
                               client_id=i))
     
-    server = Server(args, clients, server_update_method=server_update)
+    server = Server(args, clients, server_update_method=server_update, test_loader=test_loader)
     
     server.server_update()
     
 if __name__ == '__main__':
     
     experiments = [
-        # This exepriment's setting is all default
         {
-            'args': build_args(client_epoch=10, 
-                                comm_rounds=2, 
-                                frac=0.05,
-                                prune_step=0.2,
-                                acc_thresh=0.5,
-                                batch_size=32,
-                                num_clients=400),
+            'args': build_args(client_epoch=10,
+                               comm_rounds=400,
+                               frac=0.5,
+                               prune_step=0.1,
+                               acc_thresh=0.5,
+                               batch_size=32,
+                               num_clients=400),
             'client_update': None,
             'server_update': None
         },
@@ -140,6 +139,5 @@ if __name__ == '__main__':
     
     for experiment in experiments:
         run_experiment(experiment['args'], 
-                       experiment['client_update'], 
+                       experiment['client_update'],
                        experiment['server_update'])
-    

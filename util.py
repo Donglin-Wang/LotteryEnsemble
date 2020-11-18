@@ -17,6 +17,7 @@ def average_weights(models, dataset, arch, data_nums):
     new_model = copy_model(models[0], dataset, arch)
     num_models = len(models)
     num_data_total = sum(data_nums)
+    print(f"Averaging weights with num_models {num_models} and num_data_total {num_data_total}")
     with torch.no_grad():
         # Getting all the weights and masks from original models
         weights, masks = [], []
@@ -26,31 +27,33 @@ def average_weights(models, dataset, arch, data_nums):
         # Averaging weights
         for name, param in new_model.named_parameters():
             for i in range(1, num_models):
+                #print(f"Client #{i} has weight for avg: { data_nums[i] } / {num_data_total} = { data_nums[i] / num_data_total}")
                 weighted_param = torch.mul(weights[i][name], data_nums[i])
                 param.data.copy_(param.data + weighted_param)
             avg = torch.div(param.data, num_data_total)
             param.data.copy_(avg)
-        # Averaging masks
+        # SET masks back to 1 for global
         for name, buffer in new_model.named_buffers():
-            for i in range(1, num_models):
-                weighted_masks = torch.mul(masks[i][name], data_nums[i])
-                buffer.data.copy_(buffer.data + weighted_masks)
-            avg = torch.div(buffer.data, num_models)
-            
-            # The code below clips all the values to [0.0, 1.0] of the new model. 
+            # for i in range(1, num_models):
+            #     weighted_masks = torch.mul(masks[i][name], data_nums[i])
+            #     buffer.data.copy_(buffer.data + weighted_masks)
+            avg = torch.ones_like(buffer.data)
+
+            # The code below clips all the values to [0.0, 1.0] of the new model.
             # This might seems trivial, but if you don't do this, you will get
             # an error message saying that there's not parameters to prune.
             # This has something to do with how pruning is handled internally
-            
-            avg = torch.clamp(avg, 0.0, 1.0)
-            avg = torch.round(avg)
+
+            #avg = torch.clamp(avg, 0.0, 1.0)
+            #avg = torch.round(avg)
             buffer.data.copy_(avg)
     return new_model
 
-def copy_model(model, dataset, arch):
+
+def copy_model(model, dataset, arch, source_buff=None):
     new_model = create_model(dataset, arch)
     source_weights = dict(model.named_parameters())
-    source_buffers = dict(model.named_buffers())
+    source_buffers = source_buff if source_buff else dict(model.named_buffers())
     for name, param in new_model.named_parameters():
         param.data.copy_(source_weights[name])
     for name, buffer in new_model.named_buffers():
@@ -217,8 +220,17 @@ def prune_fixed_amount(model, amount, verbose=True):
 def get_prune_summary(model):
     num_global_zeros = 0
     parameters_to_prune, num_global_weights = get_prune_params(model)
-    for layer, weight_name in parameters_to_prune:
-        num_global_zeros += torch.sum(getattr(layer, weight_name) == 0.0).item()
+
+    masks = dict(model.named_buffers())
+
+    for i, (layer, weight_name) in enumerate(parameters_to_prune):
+        attr = getattr(layer, weight_name)
+        try:
+            attr *= masks[list(masks)[i]]
+        except Exception as e:
+            print(e)
+
+        num_global_zeros += torch.sum(attr == 0.0).item()
     
     return num_global_zeros, num_global_weights
         
@@ -291,21 +303,21 @@ def calculate_metrics(score, ytrue, yraw, ypred):
     return score
         
 def log_obj(path, obj):
+    pass
     
-    if not os.path.exists(os.path.dirname(path)):
-        try:
-            os.makedirs(os.path.dirname(path))
-        except OSError as exc: # Guard against race condition
-            if exc.errno != errno.EEXIST:
-                raise
-                
-    with open(path, 'wb') as file:
-        if isinstance(obj, nn.Module):
-            torch.save(obj, file)
-        else:
-            pickle.dump(obj, file)
+    # if not os.path.exists(os.path.dirname(path)):
+    #     try:
+    #         os.makedirs(os.path.dirname(path))
+    #     except OSError as exc: # Guard against race condition
+    #         if exc.errno != errno.EEXIST:
+    #             raise
+    #
+    # with open(path, 'wb') as file:
+    #     if isinstance(obj, nn.Module):
+    #         torch.save(obj, file)
+    #     else:
+    #         pickle.dump(obj, file)
         
         
    
 
-    

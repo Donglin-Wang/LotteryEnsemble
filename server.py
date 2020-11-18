@@ -1,9 +1,10 @@
 import numpy as np
-from util import average_weights, create_model, copy_model, log_obj
+from util import average_weights, create_model, copy_model, log_obj, evaluate
+import multiprocessing as mp
 
 class Server():
     
-    def __init__(self, args, clients, server_update_method=None):
+    def __init__(self, args, clients, server_update_method=None, test_loader=None):
         
         self.args = args
         self.comm_rounds = args.comm_rounds
@@ -13,6 +14,7 @@ class Server():
         self.server_update_method = server_update_method
         self.client_data_num = []
         self.elapsed_comm_rounds = 0
+        self.test_loader = test_loader
         
         for client in self.clients:
             self.client_data_num.append(len(client.train_loader))
@@ -26,6 +28,8 @@ class Server():
     
         self.global_models[0] = init_model
         self.global_init_model = copy_model(init_model, args.dataset, args.arch)
+
+        self.accuracies = []
         
         assert self.num_clients == len(clients),  "Number of client objects does not match command line input"
         
@@ -43,7 +47,7 @@ class Server():
             update_or_not = [0] * self.num_clients
             # Randomly select a fraction of users to update
             num_selected_clients = max(int(self.frac * self.num_clients), 1)
-            idx_list = np.random.choice(range(self.num_clients), num_selected_clients)
+            idx_list = np.random.choice(range(self.num_clients), num_selected_clients, replace=False)
             for idx in idx_list:
                 update_or_not[idx] = 1
            
@@ -56,12 +60,17 @@ class Server():
                     self.client_models[i][j] = self.clients[j].client_update(self.global_models[i-1], self.global_init_model)
                 else:
                     self.client_models[i][j] = copy_model(self.clients[j].model, self.args.dataset, self.args.arch)
-            
+
             models = self.client_models[i][idx_list]
             self.global_models[i] = average_weights(models, 
                                                     self.args.dataset, 
                                                     self.args.arch,
                                                     self.client_data_num)
+
+            eval_score = evaluate(self.global_models[i],
+                                  self.test_loader,
+                                  verbose=self.args.test_verbosity)
+            self.accuracies.append(eval_score['Accuracy'])
             client_model_path = './log/server/client_models/client_models.model_list'
             server_model_path = f'./log/server/server_models/average_model_round{self.elapsed_comm_rounds}.model_list'
             log_obj(client_model_path, self.client_models)
