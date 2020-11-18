@@ -1,4 +1,5 @@
 import numpy as np
+import random
 import torch
 import torchvision as tv
 import torchvision.transforms as tf
@@ -27,9 +28,12 @@ def iid_split(num_clients,
 
 def non_iid_split(num_clients,
                   train_data, 
-                  batch_size):
+                  batch_size, test_data):
     
     data_size = train_data.data.shape[0]
+
+    #Test data size
+    data_size_test = test_data.data.shape[0]
     
     # Making sure that each client gets at least 2 samples
     assert data_size > num_clients * 2
@@ -38,20 +42,44 @@ def non_iid_split(num_clients,
     label_idx_pairs = [ (i, train_data.targets[i]) for i in range(data_size)]
     label_idx_pairs = sorted(label_idx_pairs, key=lambda pair : pair[1])
     sorted_idx = [idx for idx, label in label_idx_pairs]
+
+
+    # Sorting the data by their class labels TEST DATA
+    label_idx_pairs_test = [ (i, test_data.targets[i]) for i in range(data_size_test)]
+    label_idx_pairs_test = sorted(label_idx_pairs_test, key=lambda pair : pair[1])
+    sorted_idx_test = [idx for idx, label in label_idx_pairs_test]
+
+    #Random int for setting seed to make the Train data and Test data have the same labels
+    rand_num = random.randint(1, 100000)
     
     # Split the class labels into 2 * num_clients chunks. If the data cannot
     # be equally divided, the last chunk will have less data than the rest.
     sample_bin_idx = np.array_split(sorted_idx, num_clients * 2)
+    np.random.seed(rand_num)
     sample_bin_idx = np.random.permutation(sample_bin_idx)
     num_bins = len(sample_bin_idx)
-    
+
+    #For test data
+    sample_bin_idx_test = np.array_split(sorted_idx_test, num_clients * 2)
+    np.random.seed(rand_num)
+    sample_bin_idx_test = np.random.permutation(sample_bin_idx_test)           
+    num_bins_test = len(sample_bin_idx_test)
+
+    #Training data loaders
     user_loaders = []
+    #Test data loaders
+    test_loaders = []
     
     for i in range(0, num_bins, 2):
         client_data_idx = sample_bin_idx[i]
+
+        client_test_data_idx = sample_bin_idx_test[i]
+
         if i + 1 < num_bins:
             client_data_idx = np.append(client_data_idx, sample_bin_idx[i+1])
+            client_test_data_idx = np.append(client_test_data_idx, sample_bin_idx_test[i+1])
             
+        #Trainning data
         cur_sampler = torch.utils.data.BatchSampler(client_data_idx, 
                                                     batch_size, 
                                                     drop_last=False)
@@ -59,7 +87,18 @@ def non_iid_split(num_clients,
                                                  batch_sampler=cur_sampler)
         user_loaders.append(cur_loader)
 
-    return user_loaders
+
+        #Test data
+        cur_sampler_test = torch.utils.data.BatchSampler(client_test_data_idx, 
+                                                    batch_size, 
+                                                    drop_last=False)
+        cur_loader_test = torch.utils.data.DataLoader(test_data,
+                                                 batch_sampler=cur_sampler_test)
+        test_loaders.append(cur_loader_test)
+
+
+
+    return user_loaders, test_loaders
 
 def non_iid_unequal_split(num_clients, 
                           train_data,
@@ -105,6 +144,17 @@ def get_data(num_clients, dataset_name,
                                 train=False,
                                 download=True,
                                 transform=transform)
+
+    elif dataset_name == "cifar100":
+        train_data = tv.datasets.CIFAR100(root="./data", 
+                                 train=True, 
+                                 download=True, 
+                                 transform=transform)
+        test_data = tv.datasets.CIFAR100(root="./data",
+                                train=False,
+                                download=True,
+                                transform=transform)
+
     else:
         print("You did not enter the name of a supported dataset")
         print("Supported datasets: {}, {}".format('"cifar10"', '"mnist"'))
@@ -120,7 +170,7 @@ def get_data(num_clients, dataset_name,
     elif mode == "non-iid":
         return non_iid_split(num_clients, 
                              train_data,  
-                             batch_size), global_test_loader
+                             batch_size, test_data)
     
     elif mode == "non-iid-unequal":
         return non_iid_unequal_split(num_clients, 
@@ -137,13 +187,27 @@ def get_data(num_clients, dataset_name,
 
 if __name__ == "__main__":
     
-    user_loaders, test_loader = get_data(10, "MNIST")
-    assert len(user_loaders) == 10
+    #print("Load MNIST 10")
+    #user_loaders, test_loader = get_data(10, "mnist")
+    #assert len(user_loaders) == 10
     
-    users_data, test_loader = get_data(100, "MNIST", mode="non-iid")
+    print("Load MNIST 10 non-iid")
+    users_data, test_loader = get_data(10, "mnist", mode="non-iid")
     print(len(users_data))
-    print(len(users_data[-1]))
+    print(len(test_loader))
+
+    count = 0
+    print("training data")
     for data, label in users_data[0]:
         print(label)
+        count += 1
+    print(count)
+
+    count = 0
+    print("testing data")
+    for data, label in test_loader[0]:
+        print(label)
+        count += 1
+    print(count)
 
     
