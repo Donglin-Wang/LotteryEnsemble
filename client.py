@@ -33,13 +33,12 @@ class Client:
         print(f'***** Client #{self.client_id} *****', flush=True)
         self.model = copy_model(global_model,
                                 self.args.dataset,
-                                self.args.arch)
+                                self.args.arch,
+                                dict(self.model.named_buffers()))
         
         num_pruned, num_params = get_prune_summary(self.model)
         cur_prune_rate = num_pruned / num_params
         prune_step = math.floor(num_params * self.args.prune_step)
-       
-       
         
         eval_score = evaluate(self.model, 
                          self.test_loader,
@@ -57,19 +56,22 @@ class Client:
                                verbose=self.args.prune_verbosity)
         
         for i in range(self.args.client_epoch):
-            train_log_path = f'./log/clients/client{self.client_id}'\
-                             f'/round{self.elapsed_comm_rounds}/'
-                                
-                            
             print(f'Epoch {i+1}')
             train_score = train(self.model, 
                   self.train_loader, 
                   lr=self.args.lr,
                   verbose=self.args.train_verbosity)
-            epoch_path = train_log_path + f'client_model_epoch{i}.torch'
+            # epoch_path = train_log_path + f'client_model_epoch{i}.torch'
+            train_log_path = f'./log/clients/client{self.client_id}'\
+                             f'/round{self.elapsed_comm_rounds}/'
             epoch_score_path = train_log_path + f'client_train_score_epoch{i}.pickle'
-            log_obj(epoch_path, self.model)
+            # log_obj(epoch_path, self.model)
             log_obj(epoch_score_path, train_score)
             
+        mask_log_path = f'./log/clients/client{self.client_id}'\
+                        f'/round{self.elapsed_comm_rounds}/'\
+                        f'client_mask.pickle'
+        client_mask = dict(self.model.named_buffers())
+        log_obj(mask_log_path, client_mask)
         
         return copy_model(self.model, self.args.dataset, self.args.arch)

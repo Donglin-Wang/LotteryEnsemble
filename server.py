@@ -1,5 +1,5 @@
 import numpy as np
-from util import average_weights, create_model, copy_model, log_obj
+from util import average_weights, create_model, copy_model
 
 class Server():
     
@@ -43,7 +43,9 @@ class Server():
             update_or_not = [0] * self.num_clients
             # Randomly select a fraction of users to update
             num_selected_clients = max(int(self.frac * self.num_clients), 1)
-            idx_list = np.random.choice(range(self.num_clients), num_selected_clients)
+            idx_list = np.random.choice(range(self.num_clients), 
+                                        num_selected_clients,
+                                        replace=False)
             for idx in idx_list:
                 update_or_not[idx] = 1
            
@@ -62,9 +64,10 @@ class Server():
                                                     self.args.dataset, 
                                                     self.args.arch,
                                                     self.client_data_num)
-            client_model_path = './log/server/client_models/client_models.model_list'
-            server_model_path = f'./log/server/server_models/average_model_round{self.elapsed_comm_rounds}.model_list'
-            log_obj(client_model_path, self.client_models)
-            log_obj(server_model_path, self.global_models)
+            
+            # client_model_path = './log/server/client_models/client_models.model_list'
+            # server_model_path = f'./log/server/server_models/average_model_round{self.elapsed_comm_rounds}.model_list'
+            # log_obj(client_model_path, self.client_models)
+            # log_obj(server_model_path, self.global_models)
             
 
