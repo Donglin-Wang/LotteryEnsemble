@@ -78,6 +78,7 @@ def non_iid_split(num_clients,
     user_loaders = []
     #Test data loaders
     test_loaders = []
+
     
     for i in range(0, num_bins, 2):
         
@@ -93,16 +94,17 @@ def non_iid_split(num_clients,
         client_test_data_idx = shuffle(client_test_data_idx)
             
         #Trainning data
-        cur_sampler = torch.utils.data.BatchSampler(client_data_idx, 
+        randomize_train_Sample = np.random.permutation(client_data_idx)
+        cur_sampler = torch.utils.data.BatchSampler(randomize_train_Sample, 
                                                     batch_size, 
                                                     drop_last=False)
         cur_loader = torch.utils.data.DataLoader(train_data,
                                                  batch_sampler=cur_sampler)
         user_loaders.append(cur_loader)
 
-
         #Test data
-        cur_sampler_test = torch.utils.data.BatchSampler(client_test_data_idx, 
+        randomize_test_Sample = np.random.permutation(client_test_data_idx)
+        cur_sampler_test = torch.utils.data.BatchSampler(randomize_test_Sample, 
                                                     batch_size, 
                                                     drop_last=False)
         cur_loader_test = torch.utils.data.DataLoader(test_data,
