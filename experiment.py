@@ -93,51 +93,137 @@ def build_args(arch='mlp',
     return args
     
 def run_experiment(args, client_update, server_update):
-    
-    client_loaders, test_loader = get_data(args.num_clients, 
-                                           args.dataset, 
-                                           mode=args.data_split, 
+
+    client_loaders, test_loader = get_data(args.num_clients,
+                                           args.dataset,
+                                           mode=args.data_split,
                                            batch_size=args.batch_size)
-    
+
     clients = []
-    
+
     for i in range(args.num_clients):
-        clients.append(Client(args, 
-                              client_loaders[i], 
-                              test_loader, 
+        clients.append(Client(args,
+                              client_loaders[i],
+                              test_loader,
                               client_update_method=client_update,
                               client_id=i))
-    
+
     server = Server(args, clients, server_update_method=server_update, test_loader=test_loader)
-    
+
     server.server_update()
+    return server, clients
     
 if __name__ == '__main__':
-    
     experiments = [
+        # This exepriment's setting is all default
         {
-            'args': build_args(client_epoch=10,
-                               comm_rounds=400,
-                               frac=0.5,
-                               prune_step=0.1,
-                               acc_thresh=0.5,
-                               batch_size=32,
-                               num_clients=400),
-            'client_update': None,
-            'server_update': None
-        },
-        # # This experiment contains a custom update method that client uses
-        # {
-        #     'args': build_args(client_epoch=1, 
-        #                        comm_rounds=2, 
-        #                        frac=0.2, 
-        #                        acc_thresh=0.1),
-        #     'client_update': client_update_method1,
-        #     'server_update': None
-        # }
+                'args': build_args(client_epoch=10,
+                                    comm_rounds=400,
+                                    frac=0.1,
+                                    prune_step=0.1,
+                                    acc_thresh=0.5,
+                                    batch_size=32,
+                                    num_clients=400),
+                'client_update': None,
+                'server_update': None
+            },
+            # # This experiment contains a custom update method that client uses
+            # {
+            #     'args': build_args(client_epoch=1,
+            #                        comm_rounds=2,
+            #                        frac=0.2,
+            #                        acc_thresh=0.1),
+            #     'client_update': client_update_method1,
+            #     'server_update': None
+            # }
     ]
+
+    experiment = experiments[0]
+    server, clients = run_experiment(experiment['args'],
+                experiment['client_update'],
+                experiment['server_update'])
+
+    print("###########################################################")
+    print(f"server acc {server.accuracies}")
+    print("###########################################################")
+    for i, c in enumerate(clients):
+        print(f"client #{i} accuracies {c.accuracies}")
+        print(f"client #{i} losses {c.losses}")
+        print(f"client #{i} prune_rates {c.prune_rates}")
+        print("\n\n\n")
+        
+    import numpy as np
+    num_clients = len(clients)
+    num_rounds = 4 
+    num_local_epoch = 10
+
+    mu_client_losses = np.zeros((num_clients, num_rounds, num_local_epoch))
+
+    for i, c in enumerate(clients):
+        c_tmp_loss = np.zeros((num_rounds, num_local_epoch))
+        for j, loss in enumerate(c.losses):
+            c_tmp_loss[j] = np.array(loss)
+        mu_client_losses[i] = c_tmp_loss
+        
+
+
+    mu_client_accs = np.zeros((num_clients, num_rounds, num_local_epoch))
+
+    for i, c in enumerate(clients):
+        c_tmp_acc = np.zeros((num_rounds, num_local_epoch))
+        for j, acc in enumerate(c.accuracies):
+            c_tmp_acc[j] = np.array(acc)
+        mu_client_accs[i] = c_tmp_acc
+        
+
+    mu_mn_by_client = mu_client_losses.mean(axis=2)
+    masked = np.ma.masked_equal(mu_mn_by_client, 0)
+    mu_mn_by_client = masked.mean(axis=0).data
     
-    for experiment in experiments:
-        run_experiment(experiment['args'], 
-                       experiment['client_update'],
-                       experiment['server_update'])
+    
+    mu_client_accs_by_c = mu_client_accs.mean(axis=2)
+    masked = np.ma.masked_equal(mu_client_accs_by_c, 0)
+    mu_client_accs_by_c = masked.mean(axis=0).data
+    
+    with open('mu_client_accs.npy', 'wb') as f:
+        np.save(f, mu_client_accs)
+        
+    
+    with open('mu_client_losses.npy', 'wb') as f:
+        np.save(f, mu_client_losses)
+    
+    
+    with open('mu_client_accs_by_c.npy', 'wb') as f:
+        np.save(f, mu_client_accs_by_c)
+        
+    with open('mu_mn_by_client.npy', 'wb') as f:
+        np.save(f, mu_mn_by_client)
+        
+    with open('server_accs.npy', 'wb') as f:
+        server_accs = np.array(server.accuracies)
+        np.save(f, server_accs)
+    
+    
+    mu_client_pr = np.zeros((num_clients, num_rounds, num_local_epoch))
+
+    for i, c in enumerate(clients):
+        c_tmp_pr = np.zeros((num_rounds, num_local_epoch))
+        for j, acc in enumerate(c.prune_rates):
+            c_tmp_pr[j] = np.array(acc)
+        mu_client_pr[i] = c_tmp_pr
+        
+
+    mu_client_pr_by_c = mu_client_pr.mean(axis=2)
+    masked = np.ma.masked_equal(mu_client_pr_by_c, 0)
+    mu_client_pr_by_c = masked.mean(axis=0).data
+    
+    with open('mu_client_pr_by_c.npy', 'wb') as f:
+        np.save(f, mu_client_pr_by_c)
+    
+    with open('mu_client_pr.npy', 'wb') as f:
+        np.save(f, mu_client_pr)
+        
+    #print(mu_client_accs.mean(axis=2).mean(axis=0))
+
+
+
