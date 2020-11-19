@@ -69,6 +69,7 @@ def non_iid_split(num_clients,
     user_loaders = []
     #Test data loaders
     test_loaders = []
+
     
     for i in range(0, num_bins, 2):
         client_data_idx = sample_bin_idx[i]
@@ -80,23 +81,24 @@ def non_iid_split(num_clients,
             client_test_data_idx = np.append(client_test_data_idx, sample_bin_idx_test[i+1])
             
         #Trainning data
-        cur_sampler = torch.utils.data.BatchSampler(client_data_idx, 
+        randomize_train_Sample = np.random.permutation(client_data_idx)
+        cur_sampler = torch.utils.data.BatchSampler(randomize_train_Sample, 
                                                     batch_size, 
                                                     drop_last=False)
         cur_loader = torch.utils.data.DataLoader(train_data,
                                                  batch_sampler=cur_sampler)
         user_loaders.append(cur_loader)
 
-
         #Test data
-        cur_sampler_test = torch.utils.data.BatchSampler(client_test_data_idx, 
+        randomize_test_Sample = np.random.permutation(client_test_data_idx)
+        cur_sampler_test = torch.utils.data.BatchSampler(randomize_test_Sample, 
                                                     batch_size, 
                                                     drop_last=False)
         cur_loader_test = torch.utils.data.DataLoader(test_data,
                                                  batch_sampler=cur_sampler_test)
         test_loaders.append(cur_loader_test)
 
-
+    
 
     return user_loaders, test_loaders
 
@@ -192,7 +194,7 @@ if __name__ == "__main__":
     #assert len(user_loaders) == 10
     
     print("Load MNIST 10 non-iid")
-    users_data, test_loader = get_data(10, "mnist", mode="non-iid")
+    users_data, test_loader = get_data(400, "mnist", mode="non-iid", batch_size=32)
     print(len(users_data))
     print(len(test_loader))
 
@@ -209,5 +211,8 @@ if __name__ == "__main__":
         print(label)
         count += 1
     print(count)
+
+
+
 
     
