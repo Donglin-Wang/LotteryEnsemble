@@ -18,7 +18,7 @@ def iid_split(num_clients,
     
     for idx in sample_idx:
         user_train_loaders.append(torch.utils.data.DataLoader(train_data, 
-                                            sampler=idx,
+                                            sampler=torch.utils.data.SequentialSampler(idx),
                                             batch_size=batch_size))
     
     return user_train_loaders
@@ -80,7 +80,7 @@ def get_data(num_clients, dataset_name,
     
     transform = tf.Compose(
         [tf.ToTensor(), 
-          tf.Normalize((0.5), (0.5))
+          tf.Normalize((0.5,), (0.5,))
          ]
     )
     
