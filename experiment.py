@@ -118,7 +118,7 @@ if __name__ == '__main__':
         # This exepriment's setting is all default
         {
             'args': build_args(client_epoch=10,
-                               comm_rounds=10,
+                               comm_rounds=400,
                                frac=0.05,
                                prune_step=0.1,
                                acc_thresh=0.5,
