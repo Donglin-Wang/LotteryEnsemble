@@ -208,13 +208,22 @@ def prune_fixed_amount(model, amount, verbose=True):
         print('Pruning Summary', flush=True)
         print(tabulate(prune_stat, headers='keys'), flush=True)
         print(f'Percent Pruned Globaly: {global_prune_percent:.2f}', flush=True)
-   
+
 def get_prune_summary(model):
     num_global_zeros = 0
     parameters_to_prune, num_global_weights = get_prune_params(model)
-    for layer, weight_name in parameters_to_prune:
-        num_global_zeros += torch.sum(getattr(layer, weight_name) == 0.0).item()
-    
+
+    masks = dict(model.named_buffers())
+
+    for i, (layer, weight_name) in enumerate(parameters_to_prune):
+        attr = getattr(layer, weight_name)
+        try:
+            attr *= masks[list(masks)[i]]
+        except Exception as e:
+            print(e)
+
+        num_global_zeros += torch.sum(attr == 0.0).item()
+
     return num_global_zeros, num_global_weights
         
 def get_prune_params(model):
@@ -303,4 +312,3 @@ def log_obj(path, obj):
         
    
 
-    
