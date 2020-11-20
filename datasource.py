@@ -10,20 +10,29 @@ from sklearn.utils import shuffle
 
 def iid_split(num_clients, 
               train_data, 
-              batch_size):
+              batch_size, test_data):
     
-    all_idx = np.arange(train_data.data.shape[0])
+    all_train_idx = np.arange(train_data.data.shape[0])
     
-    sample_idx = np.array_split(all_idx, num_clients)
+    sample_train_idx = np.array_split(all_train_idx, num_clients)
+
+    all_test_idx = np.arange(test_data.data.shape[0])
+
+    sample_test_idx = np.array_split(all_test_idx, num_clients)
     
     user_train_loaders = []
+    user_test_loaders = []
     
-    for idx in sample_idx:
+    for idx in sample_train_idx:
         user_train_loaders.append(torch.utils.data.DataLoader(train_data, 
                                             sampler=torch.utils.data.SequentialSampler(idx),
                                             batch_size=batch_size))
+    for idx in sample_test_idx:
+        user_test_loaders.append(torch.utils.data.DataLoader(test_data,
+                                                              sampler=idx,
+                                                              batch_size=batch_size))
     
-    return user_train_loaders
+    return user_train_loaders, user_test_loaders
 
 # Sort the labels before splitting the data to each user
 
@@ -167,12 +176,12 @@ def get_data(num_clients, dataset_name,
     if mode == "iid":
         return iid_split(num_clients, 
                          train_data, 
-                         batch_size), global_test_loader
+                         batch_size, test_data), global_test_loader
     
     elif mode == "non-iid":
         return non_iid_split(num_clients, 
                              train_data,  
-                             batch_size, test_data)
+                             batch_size, test_data), global_test_loader
     
     elif mode == "non-iid-unequal":
         return non_iid_unequal_split(num_clients, 

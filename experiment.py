@@ -5,6 +5,7 @@ import math
 from client import Client
 from server import Server
 from datasource import get_data
+import numpy as np
 
 # User defined update method
 def client_update_method1(client_self, global_model, global_init_model):
@@ -94,7 +95,7 @@ def build_args(arch='mlp',
     
 def run_experiment(args, client_update, server_update):
     
-    client_loaders, test_loader = get_data(args.num_clients, 
+    (client_loaders, test_loader), global_test_loader = get_data(args.num_clients,
                                            args.dataset, 
                                            mode=args.data_split, 
                                            batch_size=args.batch_size)
@@ -108,41 +109,136 @@ def run_experiment(args, client_update, server_update):
                               client_update_method=client_update,
                               client_id=i))
     
-    server = Server(args, clients, server_update_method=server_update)
+    server = Server(args, np.array(clients, dtype=np.object), server_update_method=server_update,
+                    test_loader=global_test_loader)
     
     server.server_update()
+    return server, clients
     
 if __name__ == '__main__':
-    
+    num_rounds = 10
+    num_local_epoch = 10
+
     experiments = [
         # This exepriment's setting is all default
         {
-            'args': build_args(client_epoch=10,
-                               comm_rounds=400,
-                               frac=0.05,
+            'args': build_args(data_split = "non-iid",
+                                client_epoch=num_local_epoch,
+                               comm_rounds=num_rounds,
+                               frac=0.5,
                                prune_step=0.1,
                                acc_thresh=0.5,
                                batch_size=32,
-                               num_clients=400,
-                               train_verbosity=False,
-                               test_verbosity=False,
-                               prune_verbosity=False),
+                               num_clients=10),
             'client_update': None,
             'server_update': None
         },
         # # This experiment contains a custom update method that client uses
         # {
-        #     'args': build_args(client_epoch=1, 
-        #                        comm_rounds=2, 
-        #                        frac=0.2, 
+        #     'args': build_args(client_epoch=1,
+        #                        comm_rounds=2,
+        #                        frac=0.2,
         #                        acc_thresh=0.1),
         #     'client_update': client_update_method1,
         #     'server_update': None
         # }
     ]
-    
-    for experiment in experiments:
-        run_experiment(experiment['args'], 
-                       experiment['client_update'], 
-                       experiment['server_update'])
-    
+
+    experiment = experiments[0]
+    server, clients = run_experiment(experiment['args'],
+                                     experiment['client_update'],
+                                     experiment['server_update'])
+
+    print("###########################################################")
+    print(f"server acc {server.accuracies}")
+    print("###########################################################")
+    for i, c in enumerate(clients):
+        print(f"client #{i} accuracies {c.accuracies}")
+        print(f"client #{i} losses {c.losses}")
+        print(f"client #{i} prune_rates {c.prune_rates}")
+        print("\n\n\n")
+
+    import numpy as np
+    num_clients = len(clients)
+
+
+    mu_client_losses = np.zeros((num_clients, num_rounds, num_local_epoch))
+
+    for i, c in enumerate(clients):
+        c_tmp_loss = np.zeros((num_rounds, num_local_epoch))
+        for j, loss in enumerate(c.losses):
+            c_tmp_loss[j] = np.array(loss)
+        mu_client_losses[i] = c_tmp_loss
+
+
+    with open('mu_client_losses.npy', 'wb') as f:
+        np.save(f, mu_client_losses)
+
+    mu_client_accs = np.zeros((num_clients, num_rounds, num_local_epoch))
+
+    for i, c in enumerate(clients):
+        c_tmp_acc = np.zeros((num_rounds, num_local_epoch))
+        for j, acc in enumerate(c.accuracies):
+            c_tmp_acc[j] = np.array(acc)
+        mu_client_accs[i] = c_tmp_acc
+
+    with open('mu_client_accs.npy', 'wb') as f:
+        np.save(f, mu_client_accs)
+
+
+    mu_client_pr_rates = np.zeros((num_clients, num_rounds))
+    for i, c in enumerate(clients):
+        mu_client_pr_rates[i] = c.prune_rates
+
+
+    with open('mu_client_pr_rates.npy', 'wb') as f:
+        np.save(f, mu_client_accs)
+
+
+    mu_client_losses_by_r = np.ma.masked_equal(mu_client_losses.mean(axis=2), 0).mean(axis=0).data
+    with open('mu_client_losses_by_r.npy', 'wb') as f:
+        np.save(f, mu_client_losses_by_r)
+
+
+    mu_client_accs_by_r = np.ma.masked_equal(mu_client_accs.mean(axis=2), 0).mean(axis=0).data
+    with open('mu_client_accs_by_r.npy', 'wb') as f:
+        np.save(f, mu_client_accs_by_r)
+
+    mu_client_pr_rate_by_r = np.ma.masked_equal(mu_client_pr_rates.mean(axis=0), 0).data
+    with open('mu_client_pr_rate_by_r.npy', 'wb') as f:
+        np.save(f, mu_client_pr_rate_by_r)
+
+
+    with open('server_accs.npy', 'wb') as f:
+        server_accs = np.array(server.accuracies)
+        np.save(f, server_accs)
+
+    import matplotlib.pyplot as plt
+    fig, axs = plt.subplots(1, 1)
+    axs.plot(range(num_rounds), server_accs)
+    axs.set_title("Rounds vs Server Accuracies")
+    axs.set_ylabel("Rounds")
+    fig.savefig("rounds_vs_server_accs.png")
+
+    fig, axs = plt.subplots(1, 1)
+    axs.plot(range(num_rounds), mu_client_pr_rate_by_r)
+    axs.set_title("Rounds vs mean Client PR Rate")
+    axs.set_xlabel("Rounds")
+    axs.set_ylabel("client pr rate")
+    fig.savefig("mu_client_pr_rate_by_r.png")
+
+    fig, axs = plt.subplots(1, 1)
+    axs.plot(range(num_rounds), mu_client_accs_by_r)
+    axs.set_title("Rounds vs mean Client accuracies Rate")
+    axs.set_xlabel("Rounds")
+    axs.set_ylabel("accuracies")
+    fig.savefig("mu_client_accs_by_r.png")
+
+    fig, axs = plt.subplots(1, 1)
+    axs.plot(range(num_rounds), mu_client_losses_by_r)
+    axs.set_title("Rounds vs mean Client loss Rate")
+    axs.set_xlabel("Rounds")
+    axs.set_ylabel("loss Rate")
+    fig.savefig("mu_client_losses_by_r.png")
+
+
