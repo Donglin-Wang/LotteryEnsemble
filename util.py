@@ -13,8 +13,8 @@ from tabulate import tabulate
 import torch.nn.utils.prune as prune
 
 
-def average_weights(models, dataset, arch, data_nums):
-    new_model = copy_model(models[0], dataset, arch)
+def average_weights(server_model, models, dataset, arch, data_nums):
+    new_model = create_model(dataset, arch) #copy_model(server_model, dataset, arch, source_buff=dict(server_model.named_buffers()))
     num_models = len(models)
     num_data_total = sum(data_nums)
     with torch.no_grad():
@@ -23,9 +23,12 @@ def average_weights(models, dataset, arch, data_nums):
         for i in range(num_models):
             weights.append(dict(models[i].named_parameters()))
             masks.append(dict(models[i].named_buffers()))
+
+        for name, param in new_model.named_parameters():
+            param.data.copy_(torch.zeros_like(param.data))
         # Averaging weights
         for name, param in new_model.named_parameters():
-            for i in range(1, num_models):
+            for i in range(num_models):
                 weighted_param = torch.mul(weights[i][name], data_nums[i])
                 param.data.copy_(param.data + weighted_param)
             avg = torch.div(param.data, num_data_total)
@@ -81,7 +84,7 @@ def create_model(dataset_name, model_type):
 
 def train(model, 
           train_loader,
-          lr=0.001,
+          lr=0.01,
           verbose=True):
     
     loss_function = nn.CrossEntropyLoss()

@@ -58,6 +58,10 @@ class Client:
             prune_fixed_amount(self.model, 
                                prune_step,
                                verbose=self.args.prune_verbosity)
+            self.model = copy_model(global_init_model,
+                                    self.args.dataset,
+                                    self.args.arch,
+                                    dict(self.model.named_buffers()))
         losses = []
         accuracies = []
         for i in range(self.args.client_epoch):

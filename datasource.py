@@ -203,9 +203,10 @@ if __name__ == "__main__":
     #assert len(user_loaders) == 10
     
     print("Load MNIST 10 non-iid")
-    users_data, test_loader = get_data(400, "mnist", mode="non-iid", batch_size=32)
+    (users_data, test_loader), global_test_loader = get_data(400, "mnist", mode="non-iid", batch_size=32)
     print(len(users_data))
     print(len(test_loader))
+    print(len(global_test_loader))
 
     count = 0
     print("training data")
@@ -220,5 +221,8 @@ if __name__ == "__main__":
         print(label)
         count += 1
     print(count)
+
+    print(len(users_data[0]))
+    print(len(global_test_loader))
 
     

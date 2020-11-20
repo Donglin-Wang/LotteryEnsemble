@@ -18,6 +18,7 @@ class Server():
         
         for client in self.clients:
             self.client_data_num.append(len(client.train_loader))
+        self.client_data_num = np.array(self.client_data_num)
         
         # The extra 1 entry in client_models and global_models are used to store
         # the results after last communication round
@@ -65,16 +66,17 @@ class Server():
             models = []
             for m in self.clients[idx_list]:
                 models.append(m.model)
-            self.global_models = average_weights(models,
+            self.global_models = average_weights(self.global_models, models,
                                                     self.args.dataset, 
                                                     self.args.arch,
-                                                    self.client_data_num)
+                                                    self.client_data_num[idx_list])
             del models
 
             eval_score = evaluate(self.global_models,
                                   self.test_loader,
                                       verbose=self.args.test_verbosity)
-            self.accuracies[i] = eval_score['Accuracy'][0]
+            print(f"Server accuracies over the batch + avg at the end: {eval_score['Accuracy']}")
+            self.accuracies[i] = eval_score['Accuracy'][-1]
 
             
             # client_model_path = './log/server/client_models/client_models.model_list'

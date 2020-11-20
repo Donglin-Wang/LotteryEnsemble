@@ -118,6 +118,7 @@ def run_experiment(args, client_update, server_update):
 if __name__ == '__main__':
     num_rounds = 10
     num_local_epoch = 10
+    num_clients = 100
 
     experiments = [
         # This exepriment's setting is all default
@@ -125,11 +126,11 @@ if __name__ == '__main__':
             'args': build_args(data_split = "non-iid",
                                 client_epoch=num_local_epoch,
                                comm_rounds=num_rounds,
-                               frac=0.5,
+                               frac=0.1,
                                prune_step=0.1,
-                               acc_thresh=0.5,
-                               batch_size=32,
-                               num_clients=10),
+                               acc_thresh=2,
+                               batch_size=10,
+                               num_clients=num_clients),
             'client_update': None,
             'server_update': None
         },
