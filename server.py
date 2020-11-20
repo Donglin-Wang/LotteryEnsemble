@@ -1,5 +1,5 @@
 import numpy as np
-from util import average_weights, create_model, copy_model
+from util import average_weights, create_model, copy_model, log_obj
 
 class Server():
     
@@ -12,7 +12,6 @@ class Server():
         self.clients = clients
         self.server_update_method = server_update_method
         self.client_data_num = []
-        self.elapsed_comm_rounds = 0
         
         for client in self.clients:
             self.client_data_num.append(len(client.train_loader))
@@ -37,7 +36,6 @@ class Server():
             self.default_server_update()
             
     def default_server_update(self):
-        self.elapsed_comm_rounds += 1
         # Recording the update and storing them in record
         for i in range(1, self.comm_rounds+1):
             update_or_not = [0] * self.num_clients
@@ -45,7 +43,7 @@ class Server():
             num_selected_clients = max(int(self.frac * self.num_clients), 1)
             idx_list = np.random.choice(range(self.num_clients), 
                                         num_selected_clients,
-                                        replace=False)
+                                        replace=True)
             for idx in idx_list:
                 update_or_not[idx] = 1
            
@@ -55,7 +53,9 @@ class Server():
             for j in range(len(update_or_not)):
                 
                 if update_or_not[j]:
-                    self.client_models[i][j] = self.clients[j].client_update(self.global_models[i-1], self.global_init_model)
+                    self.client_models[i][j] = self.clients[j].client_update(self.global_models[i-1], 
+                                                                             self.global_init_model,
+                                                                             round_num=i)
                 else:
                     self.client_models[i][j] = copy_model(self.clients[j].model, self.args.dataset, self.args.arch)
             
@@ -65,9 +65,5 @@ class Server():
                                                     self.args.arch,
                                                     self.client_data_num)
             
-            # client_model_path = './log/server/client_models/client_models.model_list'
-            # server_model_path = f'./log/server/server_models/average_model_round{self.elapsed_comm_rounds}.model_list'
-            # log_obj(client_model_path, self.client_models)
-            # log_obj(server_model_path, self.global_models)
-            
-
+            log_obj(f'./log/server/avg_model_round{i}.torch',
+                    self.global_models[i])

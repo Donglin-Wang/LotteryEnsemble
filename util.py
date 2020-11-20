@@ -210,12 +210,19 @@ def prune_fixed_amount(model, amount, verbose=True):
         print(f'Percent Pruned Globaly: {global_prune_percent:.2f}', flush=True)
    
 def get_prune_summary(model):
-    num_global_zeros = 0
-    parameters_to_prune, num_global_weights = get_prune_params(model)
-    for layer, weight_name in parameters_to_prune:
-        num_global_zeros += torch.sum(getattr(layer, weight_name) == 0.0).item()
+    # num_global_zeros = 0
+    # parameters_to_prune, num_global_weights = get_prune_params(model)
+    # for layer, weight_name in parameters_to_prune:
+    #     num_global_zeros += torch.sum(getattr(layer, weight_name) == 0.0).item()
     
-    return num_global_zeros, num_global_weights
+    # return num_global_zeros, num_global_weights
+    
+    num_zeros = 0
+    num_weights = 0
+    for k, v in dict(model.named_buffers()).items():
+        num_zeros += v.numel() - torch.nonzero(v).size(0)
+        num_weights += v.numel()
+    return num_zeros, num_weights
         
 def get_prune_params(model):
     layers = []

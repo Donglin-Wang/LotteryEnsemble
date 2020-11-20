@@ -118,15 +118,13 @@ if __name__ == '__main__':
         # This exepriment's setting is all default
         {
             'args': build_args(client_epoch=10,
-                               comm_rounds=400,
-                               frac=0.05,
+                               comm_rounds=40,
+                               frac=0.125,
                                prune_step=0.1,
+                               prune_percent=0.5,
                                acc_thresh=0.5,
                                batch_size=32,
-                               num_clients=400,
-                               train_verbosity=False,
-                               test_verbosity=False,
-                               prune_verbosity=False),
+                               num_clients=40),
             'client_update': None,
             'server_update': None
         },
