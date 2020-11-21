@@ -11,6 +11,13 @@ class MLP(nn.Module):
             nn.Linear(64, num_classes),
             nn.Softmax(dim=1)
         )
+        # self.classifier = nn.Sequential(
+        #     nn.Linear(28*28, 100),
+        #     nn.ReLU(inplace=True),
+        #     nn.Linear(100, 100),
+        #     nn.ReLU(inplace=True),
+        #     nn.Linear(100, num_classes),
+        # )
         
     def forward(self, x):
         x = torch.flatten(x, 1)

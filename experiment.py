@@ -69,7 +69,8 @@ def build_args(arch='mlp',
                train_verbosity=True,
                test_verbosity=True,
                prune_verbosity=True,
-               val_freq=0
+               val_freq=0,
+               avg_logic=None
                ):
     
     args = type('', (), {})()
@@ -91,6 +92,7 @@ def build_args(arch='mlp',
     args.test_verbosity = test_verbosity
     args.prune_verbosity = prune_verbosity
     args.val_freq = val_freq
+    args.avg_logic = avg_logic
     return args
     
 def run_experiment(args, client_update, server_update):
@@ -116,21 +118,27 @@ def run_experiment(args, client_update, server_update):
     return server, clients
     
 if __name__ == '__main__':
+    data_split = 'iid'
     num_rounds = 10
     num_local_epoch = 10
     num_clients = 100
+    batch_size = 10
+    avg_logic = None
+    running_on_cloud = False
+
 
     experiments = [
         # This exepriment's setting is all default
         {
-            'args': build_args(data_split = "non-iid",
+            'args': build_args(data_split = data_split,
                                 client_epoch=num_local_epoch,
                                comm_rounds=num_rounds,
                                frac=0.1,
                                prune_step=0.1,
                                acc_thresh=2,
-                               batch_size=10,
-                               num_clients=num_clients),
+                               batch_size=batch_size,
+                               num_clients=num_clients,
+                               avg_logic=avg_logic),
             'client_update': None,
             'server_update': None
         },
@@ -144,6 +152,8 @@ if __name__ == '__main__':
         #     'server_update': None
         # }
     ]
+
+    save_path = f"{ './MyDrive' if running_on_cloud else '.' }/weights/{data_split}"
 
     experiment = experiments[0]
     server, clients = run_experiment(experiment['args'],
@@ -172,7 +182,7 @@ if __name__ == '__main__':
         mu_client_losses[i] = c_tmp_loss
 
 
-    with open('mu_client_losses.npy', 'wb') as f:
+    with open(f'{save_path}/mu_client_losses.npy', 'wb') as f:
         np.save(f, mu_client_losses)
 
     mu_client_accs = np.zeros((num_clients, num_rounds, num_local_epoch))
@@ -183,7 +193,7 @@ if __name__ == '__main__':
             c_tmp_acc[j] = np.array(acc)
         mu_client_accs[i] = c_tmp_acc
 
-    with open('mu_client_accs.npy', 'wb') as f:
+    with open(f'{save_path}/mu_client_accs.npy', 'wb') as f:
         np.save(f, mu_client_accs)
 
 
@@ -192,25 +202,25 @@ if __name__ == '__main__':
         mu_client_pr_rates[i] = c.prune_rates
 
 
-    with open('mu_client_pr_rates.npy', 'wb') as f:
+    with open(f'{save_path}/mu_client_pr_rates.npy', 'wb') as f:
         np.save(f, mu_client_accs)
 
 
     mu_client_losses_by_r = np.ma.masked_equal(mu_client_losses.mean(axis=2), 0).mean(axis=0).data
-    with open('mu_client_losses_by_r.npy', 'wb') as f:
+    with open(f'{save_path}/mu_client_losses_by_r.npy', 'wb') as f:
         np.save(f, mu_client_losses_by_r)
 
 
     mu_client_accs_by_r = np.ma.masked_equal(mu_client_accs.mean(axis=2), 0).mean(axis=0).data
-    with open('mu_client_accs_by_r.npy', 'wb') as f:
+    with open(f'{save_path}/mu_client_accs_by_r.npy', 'wb') as f:
         np.save(f, mu_client_accs_by_r)
 
     mu_client_pr_rate_by_r = np.ma.masked_equal(mu_client_pr_rates.mean(axis=0), 0).data
-    with open('mu_client_pr_rate_by_r.npy', 'wb') as f:
+    with open(f'{save_path}/mu_client_pr_rate_by_r.npy', 'wb') as f:
         np.save(f, mu_client_pr_rate_by_r)
 
 
-    with open('server_accs.npy', 'wb') as f:
+    with open(f'{save_path}/server_accs.npy', 'wb') as f:
         server_accs = np.array(server.accuracies)
         np.save(f, server_accs)
 
@@ -219,27 +229,27 @@ if __name__ == '__main__':
     axs.plot(range(num_rounds), server_accs)
     axs.set_title("Rounds vs Server Accuracies")
     axs.set_ylabel("Rounds")
-    fig.savefig("rounds_vs_server_accs.png")
+    fig.savefig(f"{save_path}/rounds_vs_server_accs.png")
 
     fig, axs = plt.subplots(1, 1)
     axs.plot(range(num_rounds), mu_client_pr_rate_by_r)
     axs.set_title("Rounds vs mean Client PR Rate")
     axs.set_xlabel("Rounds")
     axs.set_ylabel("client pr rate")
-    fig.savefig("mu_client_pr_rate_by_r.png")
+    fig.savefig(f"{save_path}/mu_client_pr_rate_by_r.png")
 
     fig, axs = plt.subplots(1, 1)
     axs.plot(range(num_rounds), mu_client_accs_by_r)
     axs.set_title("Rounds vs mean Client accuracies Rate")
     axs.set_xlabel("Rounds")
     axs.set_ylabel("accuracies")
-    fig.savefig("mu_client_accs_by_r.png")
+    fig.savefig(f"{save_path}/mu_client_accs_by_r.png")
 
     fig, axs = plt.subplots(1, 1)
     axs.plot(range(num_rounds), mu_client_losses_by_r)
-    axs.set_title("Rounds vs mean Client loss Rate")
+    axs.set_title("Rounds vs mean Client loss")
     axs.set_xlabel("Rounds")
-    axs.set_ylabel("loss Rate")
-    fig.savefig("mu_client_losses_by_r.png")
+    axs.set_ylabel("mean loss")
+    fig.savefig(f"{save_path}/mu_client_losses_by_r.png")
 
 

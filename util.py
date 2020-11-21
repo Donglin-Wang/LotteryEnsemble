@@ -12,8 +12,62 @@ from tqdm import tqdm
 from tabulate import tabulate
 import torch.nn.utils.prune as prune
 
+def fed_avg(models, dataset, arch, data_nums):
+    new_model = create_model(dataset, arch) #copy_model(server_model, dataset, arch, source_buff=dict(server_model.named_buffers()))
+    num_models = len(models)
+    num_data_total = sum(data_nums)
+    data_nums = data_nums / num_data_total
+    with torch.no_grad():
+        # Getting all the weights and masks from original models
+        weights, masks = [], []
+        for i in range(num_models):
+            weights.append(dict(models[i].named_parameters()))
+            masks.append(dict(models[i].named_buffers()))
 
-def average_weights(server_model, models, dataset, arch, data_nums):
+        for name, param in new_model.named_parameters():
+            param.data.copy_(torch.zeros_like(param.data))
+        # Averaging weights
+        for name, param in new_model.named_parameters():
+            for i in range(num_models):
+                weighted_param = torch.mul(weights[i][name], data_nums[i])
+                param.data.copy_(param.data + weighted_param)
+    return new_model
+
+def lottery_fl_avg(models, dataset, arch, data_nums):
+    new_model = create_model(dataset, arch) #copy_model(server_model, dataset, arch, source_buff=dict(server_model.named_buffers()))
+    num_models = len(models)
+    num_data_total = sum(data_nums)
+    data_nums = data_nums / num_data_total
+    with torch.no_grad():
+        # Getting all the weights and masks from original models
+        weights, masks = [], []
+        for i in range(num_models):
+            weights.append(dict(models[i].named_parameters()))
+            masks.append(dict(models[i].named_buffers()))
+
+        for name, param in new_model.named_parameters():
+            param.data.copy_(torch.zeros_like(param.data))
+        # Averaging weights
+        for name, param in new_model.named_parameters():
+            for i in range(num_models):
+                parameters_to_prune, num_global_weights = get_prune_params(models[i])
+
+                model_masks = masks[i]
+
+                for j, (layer, weight_name) in enumerate(parameters_to_prune):
+                    attr = getattr(layer, weight_name)
+                    try:
+                        attr *= model_masks[list(model_masks)[j]]
+                    except Exception as e:
+                        print(e)
+                    weights[i][weight_name] = attr
+
+                weighted_param = torch.mul(weights[i][name], data_nums[i])
+                param.data.copy_(param.data + weighted_param)
+
+    return new_model
+
+def average_weights(models, dataset, arch, data_nums):
     new_model = create_model(dataset, arch) #copy_model(server_model, dataset, arch, source_buff=dict(server_model.named_buffers()))
     num_models = len(models)
     num_data_total = sum(data_nums)
@@ -29,25 +83,10 @@ def average_weights(server_model, models, dataset, arch, data_nums):
         # Averaging weights
         for name, param in new_model.named_parameters():
             for i in range(num_models):
-                weighted_param = torch.mul(weights[i][name], data_nums[i])
+                weighted_param = weights[i][name] #torch.mul(weights[i][name], data_nums[i])
                 param.data.copy_(param.data + weighted_param)
-            avg = torch.div(param.data, num_data_total)
+            avg = torch.div(param.data, num_models)
             param.data.copy_(avg)
-        # Averaging masks
-        for name, buffer in new_model.named_buffers():
-            # for i in range(1, num_models):
-            #     weighted_masks = torch.mul(masks[i][name], data_nums[i])
-            #     buffer.data.copy_(buffer.data + weighted_masks)
-            avg = torch.ones_like(buffer.data)
-
-            # The code below clips all the values to [0.0, 1.0] of the new model.
-            # This might seems trivial, but if you don't do this, you will get
-            # an error message saying that there's not parameters to prune.
-            # This has something to do with how pruning is handled internally
-
-            #avg = torch.clamp(avg, 0.0, 1.0)
-            #avg = torch.round(avg)
-            buffer.data.copy_(avg)
     return new_model
 
 def copy_model(model, dataset, arch, source_buff=None):
@@ -84,12 +123,13 @@ def create_model(dataset_name, model_type):
 
 def train(model, 
           train_loader,
-          lr=0.01,
+          lr=0.001,
           verbose=True):
     
     loss_function = nn.CrossEntropyLoss()
     opt = optim.Adam(model.parameters(), lr=lr)
     num_batch = len(train_loader)
+    model.train()
     metric_names = ['Loss',
                     'Accuracy', 
                     'Balanced Accuracy',
