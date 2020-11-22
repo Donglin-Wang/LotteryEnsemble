@@ -1,41 +1,103 @@
+import os
 import sys
-import copy
+import errno
+import pickle
 
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from sklearn import metrics as skmetrics
 
-
 from tqdm import tqdm
 from tabulate import tabulate
 import torch.nn.utils.prune as prune
 
-
-def average_weights(models):
+def fed_avg(models, dataset, arch, data_nums):
+    new_model = create_model(dataset, arch) #copy_model(server_model, dataset, arch, source_buff=dict(server_model.named_buffers()))
+    num_models = len(models)
+    num_data_total = sum(data_nums)
+    data_nums = data_nums / num_data_total
     with torch.no_grad():
-        weights = []
-        for model in models:
-            weights.append(dict(model.named_parameters()))
-        
-        avg = copy.deepcopy(weights[0])
-        for key in avg.keys():
-            for i in range(1, len(weights)):
-                avg[key] += weights[i][key]
-            avg[key] = torch.div(avg[key], len(weights))
-    return avg
+        # Getting all the weights and masks from original models
+        weights, masks = [], []
+        for i in range(num_models):
+            weights.append(dict(models[i].named_parameters()))
+            masks.append(dict(models[i].named_buffers()))
 
-
-
-def copy_model(model, dataset_name, model_type):
-    new_model = create_model(dataset_name, model_type)
-    copy_weights(new_model, model.state_dict())
+        for name, param in new_model.named_parameters():
+            param.data.copy_(torch.zeros_like(param.data))
+        # Averaging weights
+        for name, param in new_model.named_parameters():
+            for i in range(num_models):
+                weighted_param = torch.mul(weights[i][name], data_nums[i])
+                param.data.copy_(param.data + weighted_param)
     return new_model
-    
-def copy_weights(target_model, source_state_dict):
-    for name, param in target_model.named_parameters():
-        if name in source_state_dict:
-            param.data.copy_(source_state_dict[name].data)
+
+def lottery_fl_avg(models, dataset, arch, data_nums):
+    new_model = create_model(dataset, arch) #copy_model(server_model, dataset, arch, source_buff=dict(server_model.named_buffers()))
+    num_models = len(models)
+    num_data_total = sum(data_nums)
+    data_nums = data_nums / num_data_total
+    with torch.no_grad():
+        # Getting all the weights and masks from original models
+        weights, masks = [], []
+        for i in range(num_models):
+            weights.append(dict(models[i].named_parameters()))
+            masks.append(dict(models[i].named_buffers()))
+
+        for name, param in new_model.named_parameters():
+            param.data.copy_(torch.zeros_like(param.data))
+        # Averaging weights
+        for name, param in new_model.named_parameters():
+            for i in range(num_models):
+                parameters_to_prune, num_global_weights = get_prune_params(models[i])
+
+                model_masks = masks[i]
+
+                for j, (layer, weight_name) in enumerate(parameters_to_prune):
+                    attr = getattr(layer, weight_name)
+                    try:
+                        attr *= model_masks[list(model_masks)[j]]
+                    except Exception as e:
+                        print(e)
+                    weights[i][weight_name] = attr
+
+                weighted_param = torch.mul(weights[i][name], data_nums[i])
+                param.data.copy_(param.data + weighted_param)
+
+    return new_model
+
+def average_weights(models, dataset, arch, data_nums):
+    new_model = create_model(dataset, arch) #copy_model(server_model, dataset, arch, source_buff=dict(server_model.named_buffers()))
+    num_models = len(models)
+    num_data_total = sum(data_nums)
+    with torch.no_grad():
+        # Getting all the weights and masks from original models
+        weights, masks = [], []
+        for i in range(num_models):
+            weights.append(dict(models[i].named_parameters()))
+            masks.append(dict(models[i].named_buffers()))
+
+        for name, param in new_model.named_parameters():
+            param.data.copy_(torch.zeros_like(param.data))
+        # Averaging weights
+        for name, param in new_model.named_parameters():
+            for i in range(num_models):
+                weighted_param = weights[i][name] #torch.mul(weights[i][name], data_nums[i])
+                param.data.copy_(param.data + weighted_param)
+            avg = torch.div(param.data, num_models)
+            param.data.copy_(avg)
+    return new_model
+
+def copy_model(model, dataset, arch, source_buff=None):
+    new_model = create_model(dataset, arch)
+    source_weights = dict(model.named_parameters())
+    source_buffers = source_buff if source_buff else dict(model.named_buffers())
+    for name, param in new_model.named_parameters():
+        param.data.copy_(source_weights[name])
+    for name, buffer in new_model.named_buffers():
+        buffer.data.copy_(source_buffers[name])
+    return new_model
 
 def create_model(dataset_name, model_type):
     
@@ -67,6 +129,7 @@ def train(model,
     loss_function = nn.CrossEntropyLoss()
     opt = optim.Adam(model.parameters(), lr=lr)
     num_batch = len(train_loader)
+    model.train()
     metric_names = ['Loss',
                     'Accuracy', 
                     'Balanced Accuracy',
@@ -110,7 +173,7 @@ def train(model,
         print("Average scores for the epoch: ")
         print(tabulate(average_scores, headers='keys', tablefmt='github'))
     
-    return average_scores
+    return score
 
 def evaluate(model, data_loader, verbose=True):
     # Swithicing off gradient calculation to save memory
@@ -153,7 +216,7 @@ def evaluate(model, data_loader, verbose=True):
     if verbose:
         print('Evaluation Score: ')   
         print(tabulate(score, headers='keys', tablefmt='github'), flush=True)
-    
+    model.train()
     torch.enable_grad()
     return score
 
@@ -188,17 +251,24 @@ def prune_fixed_amount(model, amount, verbose=True):
         print('Pruning Summary', flush=True)
         print(tabulate(prune_stat, headers='keys'), flush=True)
         print(f'Percent Pruned Globaly: {global_prune_percent:.2f}', flush=True)
-   
+
 def get_prune_summary(model):
     num_global_zeros = 0
     parameters_to_prune, num_global_weights = get_prune_params(model)
-    for layer, weight_name in parameters_to_prune:
-        num_global_zeros += torch.sum(getattr(layer, weight_name) == 0.0).item()
-    
+
+    masks = dict(model.named_buffers())
+
+    for i, (layer, weight_name) in enumerate(parameters_to_prune):
+        attr = getattr(layer, weight_name)
+        try:
+            attr *= masks[list(masks)[i]]
+        except Exception as e:
+            print(e)
+
+        num_global_zeros += torch.sum(attr == 0.0).item()
+
     return num_global_zeros, num_global_weights
         
-    
-    
 def get_prune_params(model):
     layers = []
     
@@ -245,17 +315,43 @@ def calculate_metrics(score, ytrue, yraw, ypred):
     if 'Balanced Accuracy' in score:
         score['Balanced Accuracy'].append(skmetrics.balanced_accuracy_score(ytrue, ypred))
     if 'Precision Micro' in score:
-        score['Precision Micro'].append(skmetrics.precision_score(ytrue, ypred, average='micro'))
+        score['Precision Micro'].append(skmetrics.precision_score(ytrue, 
+                                                                  ypred, 
+                                                                  average='micro',
+                                                                  zero_division=0))
     if 'Recall Micro' in score:
-        score['Recall Micro'].append(skmetrics.recall_score(ytrue, ypred, average='micro'))
+        score['Recall Micro'].append(skmetrics.recall_score(ytrue, 
+                                                            ypred, 
+                                                            average='micro',
+                                                            zero_division=0))
     if 'Precision Macro' in score:
-        score['Precision Macro'].append(skmetrics.precision_score(ytrue, ypred, average='macro'))
+        score['Precision Macro'].append(skmetrics.precision_score(ytrue, 
+                                                                  ypred, 
+                                                                  average='macro',
+                                                                  zero_division=0))
     if 'Recall Macro' in score:
-        score['Recall Macro'].append(skmetrics.recall_score(ytrue, ypred, average='macro'))
+        score['Recall Macro'].append(skmetrics.recall_score(ytrue, 
+                                                            ypred, 
+                                                            average='macro',
+                                                            zero_division=0))
     
     return score
+        
+def log_obj(path, obj):
+    
+    if not os.path.exists(os.path.dirname(path)):
+        try:
+            os.makedirs(os.path.dirname(path))
+        except OSError as exc: # Guard against race condition
+            if exc.errno != errno.EEXIST:
+                raise
+                
+    with open(path, 'wb') as file:
+        if isinstance(obj, nn.Module):
+            torch.save(obj, file)
+        else:
+            pickle.dump(obj, file)
         
         
    
 
-    
