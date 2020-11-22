@@ -8,7 +8,7 @@ from datasource import get_data
 
 # User defined update method
 def client_update_method1(client_self, global_model, global_init_model):
-            
+    print(f'***** Client #{client_self.client_id} *****', flush=True)
     # Checking if the client object has been properly initialized
     assert isinstance(client_self.model, nn.Module), "A model must be a PyTorch module"
     assert 0 <= client_self.args.prune_percent <= 1, "The prune percentage must be between 0 and 1"
@@ -27,24 +27,22 @@ def client_update_method1(client_self, global_model, global_init_model):
     cur_prune_rate = num_pruned / num_params
     prune_step = math.floor(num_params * client_self.args.prune_step)
     
-    
     for i in range(client_self.args.client_epoch):
         print(f'Epoch {i+1}')
         train(client_self.model, 
               client_self.train_loader, 
               lr=client_self.args.lr,
-              verbosity=client_self.args.train_verbosity)
+              verbose=client_self.args.train_verbosity)
     
-   
     score = evaluate(client_self.model, 
                      client_self.test_loader, 
-                     verbosity=client_self.args.test_verbosity)
+                     verbose=client_self.args.test_verbosity)
     
     if score['Accuracy'][0] > client_self.args.acc_thresh and cur_prune_rate < client_self.args.prune_percent:
         
         prune_fixed_amount(client_self.model, 
                            prune_step,
-                           verbosity=client_self.args.prune_verbosity)
+                           verbose=client_self.args.prune_verbosity)
     
     
     return copy_model(client_self.model, client_self.args.dataset, client_self.args.arch)
@@ -55,7 +53,7 @@ def client_update_method1(client_self, global_model, global_init_model):
 # If you want to change the default values, change it here in the funciton signature
 def build_args(arch='mlp',
                dataset='mnist',
-               data_split='iid',
+               data_split='non-iid',
                num_clients=10,
                lr=0.001,
                batch_size=4,
@@ -106,8 +104,9 @@ def run_experiment(args, client_update, server_update):
     for i in range(args.num_clients):
         clients.append(Client(args, 
                               client_loaders[i], 
-                              test_loader, 
-                              client_update_method=client_update))
+                              test_loader[i], 
+                              client_update_method=client_update,
+                              client_id=i))
     
     server = Server(args, clients, server_update_method=server_update)
     
@@ -116,18 +115,28 @@ def run_experiment(args, client_update, server_update):
 if __name__ == '__main__':
     
     experiments = [
-        # This experiment contains a custom update method that client uses
-        {
-            'args': build_args(),
-            'client_update': client_update_method1,
-            'server_update': None
-        },
         # This exepriment's setting is all default
         {
-            'args': build_args(),
+            'args': build_args(client_epoch=10,
+                               comm_rounds=40,
+                               frac=0.125,
+                               prune_step=0.1,
+                               prune_percent=0.5,
+                               acc_thresh=0.5,
+                               batch_size=32,
+                               num_clients=40),
             'client_update': None,
             'server_update': None
-        }
+        },
+        # # This experiment contains a custom update method that client uses
+        # {
+        #     'args': build_args(client_epoch=1, 
+        #                        comm_rounds=2, 
+        #                        frac=0.2, 
+        #                        acc_thresh=0.1),
+        #     'client_update': client_update_method1,
+        #     'server_update': None
+        # }
     ]
     
     for experiment in experiments:
