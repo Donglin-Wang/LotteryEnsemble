@@ -118,12 +118,12 @@ def run_experiment(args, client_update, server_update):
     return server, clients
     
 if __name__ == '__main__':
-    data_split = 'iid'
+    data_split = 'non-iid'
     num_rounds = 10
     num_local_epoch = 10
     num_clients = 100
-    batch_size = 10
-    avg_logic = None
+    batch_size = 32
+    avg_logic = "lottery_fl_avg"
     running_on_cloud = False
 
 
@@ -135,20 +135,68 @@ if __name__ == '__main__':
                                comm_rounds=num_rounds,
                                frac=0.1,
                                prune_step=0.1,
-                               acc_thresh=2,
+                               acc_thresh=0.5,
                                batch_size=batch_size,
                                num_clients=num_clients,
                                avg_logic=avg_logic),
             'client_update': None,
             'server_update': None
         },
-        # # This experiment contains a custom update method that client uses
+        # Ashwin RJ non-iid
+        # This experiment contains a custom update method that client uses
         # {
-        #     'args': build_args(client_epoch=1,
-        #                        comm_rounds=2,
-        #                        frac=0.2,
-        #                        acc_thresh=0.1),
-        #     'client_update': client_update_method1,
+        #     'args': build_args(data_split = 'non-iid',
+        #                        client_epoch=10,
+        #                        comm_rounds=10,
+        #                        frac=0.1,
+        #                        prune_step=0.1,
+        #                        acc_thresh=2,
+        #                        batch_size=10,
+        #                        num_clients=100,
+        #                        avg_logic=None),
+        #     'client_update': None,
+        #     'server_update': None
+        # },
+        #  Ashwin RJ iid
+        # {
+        #     'args': build_args(data_split = 'iid',
+        #                        client_epoch=10,
+        #                        comm_rounds=10,
+        #                        frac=0.1,
+        #                        prune_step=0.1,
+        #                        acc_thresh=2,
+        #                        batch_size=10,
+        #                        num_clients=100,
+        #                        avg_logic=None),
+        #     'client_update': None,
+        #     'server_update': None
+        # },
+        # Fed Avg non-iid
+        # {
+        #     'args': build_args(data_split = 'non-iid',
+        #                        client_epoch=10,
+        #                        comm_rounds=10,
+        #                        frac=0.1,
+        #                        prune_step=0.1,
+        #                        acc_thresh=2,
+        #                        batch_size=10,
+        #                        num_clients=100,
+        #                        avg_logic='fed_avg'),
+        #     'client_update': None,
+        #     'server_update': None
+        # },
+        # Lottery FL non-iid
+        # {
+        #     'args': build_args(data_split = 'non-iid',
+        #                        client_epoch=10,
+        #                        comm_rounds=10,
+        #                        frac=0.1,
+        #                        prune_step=0.1,
+        #                        acc_thresh=0.5,
+        #                        batch_size=10,
+        #                        num_clients=100,
+        #                        avg_logic='lottery_fl_avg'),
+        #     'client_update': None,
         #     'server_update': None
         # }
     ]
@@ -185,25 +233,24 @@ if __name__ == '__main__':
     with open(f'{save_path}/mu_client_losses.npy', 'wb') as f:
         np.save(f, mu_client_losses)
 
-    mu_client_accs = np.zeros((num_clients, num_rounds, num_local_epoch))
+    mu_part_client_accs = np.zeros((num_clients, num_rounds, num_local_epoch))
 
     for i, c in enumerate(clients):
         c_tmp_acc = np.zeros((num_rounds, num_local_epoch))
         for j, acc in enumerate(c.accuracies):
             c_tmp_acc[j] = np.array(acc)
-        mu_client_accs[i] = c_tmp_acc
+        mu_part_client_accs[i] = c_tmp_acc
 
     with open(f'{save_path}/mu_client_accs.npy', 'wb') as f:
-        np.save(f, mu_client_accs)
+        np.save(f, mu_part_client_accs)
 
 
     mu_client_pr_rates = np.zeros((num_clients, num_rounds))
     for i, c in enumerate(clients):
         mu_client_pr_rates[i] = c.prune_rates
 
-
     with open(f'{save_path}/mu_client_pr_rates.npy', 'wb') as f:
-        np.save(f, mu_client_accs)
+        np.save(f, mu_client_pr_rates)
 
 
     mu_client_losses_by_r = np.ma.masked_equal(mu_client_losses.mean(axis=2), 0).mean(axis=0).data
@@ -211,14 +258,17 @@ if __name__ == '__main__':
         np.save(f, mu_client_losses_by_r)
 
 
-    mu_client_accs_by_r = np.ma.masked_equal(mu_client_accs.mean(axis=2), 0).mean(axis=0).data
-    with open(f'{save_path}/mu_client_accs_by_r.npy', 'wb') as f:
-        np.save(f, mu_client_accs_by_r)
+    mu_client_part_accs_by_r = np.ma.masked_equal(mu_part_client_accs.mean(axis=2), 0).mean(axis=0).data
+    with open(f'{save_path}/mu_client_part_accs_by_r.npy', 'wb') as f:
+        np.save(f, mu_client_part_accs_by_r)
 
     mu_client_pr_rate_by_r = np.ma.masked_equal(mu_client_pr_rates.mean(axis=0), 0).data
     with open(f'{save_path}/mu_client_pr_rate_by_r.npy', 'wb') as f:
         np.save(f, mu_client_pr_rate_by_r)
 
+    mu_client_accs_by_r = np.ma.masked_equal(server.client_accuracies, 0).mean(axis=0).data
+    with open(f'{save_path}/mu_client_accs_by_r.npy', 'wb') as f:
+        np.save(f, mu_client_accs_by_r)
 
     with open(f'{save_path}/server_accs.npy', 'wb') as f:
         server_accs = np.array(server.accuracies)
@@ -235,21 +285,28 @@ if __name__ == '__main__':
     axs.plot(range(num_rounds), mu_client_pr_rate_by_r)
     axs.set_title("Rounds vs mean Client PR Rate")
     axs.set_xlabel("Rounds")
-    axs.set_ylabel("client pr rate")
+    axs.set_ylabel("Client PR Rate")
     fig.savefig(f"{save_path}/mu_client_pr_rate_by_r.png")
 
     fig, axs = plt.subplots(1, 1)
-    axs.plot(range(num_rounds), mu_client_accs_by_r)
-    axs.set_title("Rounds vs mean Client accuracies Rate")
+    axs.plot(range(num_rounds), mu_client_part_accs_by_r)
+    axs.set_title("Rounds vs mean Participating Client Accuracies")
     axs.set_xlabel("Rounds")
-    axs.set_ylabel("accuracies")
+    axs.set_ylabel("Accuracies")
+    fig.savefig(f"{save_path}/mu_client_part_accs_by_r.png")
+
+    fig, axs = plt.subplots(1, 1)
+    axs.plot(range(num_rounds), mu_client_accs_by_r)
+    axs.set_title("Rounds vs mean All Client Accuracies")
+    axs.set_xlabel("Rounds")
+    axs.set_ylabel("Accuracies")
     fig.savefig(f"{save_path}/mu_client_accs_by_r.png")
 
     fig, axs = plt.subplots(1, 1)
     axs.plot(range(num_rounds), mu_client_losses_by_r)
     axs.set_title("Rounds vs mean Client loss")
     axs.set_xlabel("Rounds")
-    axs.set_ylabel("mean loss")
+    axs.set_ylabel("Mean Loss")
     fig.savefig(f"{save_path}/mu_client_losses_by_r.png")
 
 

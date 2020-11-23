@@ -54,13 +54,11 @@ def lottery_fl_avg(models, dataset, arch, data_nums):
 
                 model_masks = masks[i]
 
-                for j, (layer, weight_name) in enumerate(parameters_to_prune):
-                    attr = getattr(layer, weight_name)
-                    try:
-                        attr *= model_masks[list(model_masks)[j]]
-                    except Exception as e:
-                        print(e)
-                    weights[i][weight_name] = attr
+                try:
+                    layer_mask = model_masks[name.strip("_orig") + "_mask"]
+                    weights[i][name] *= layer_mask
+                except Exception as e:
+                    pass
 
                 weighted_param = torch.mul(weights[i][name], data_nums[i])
                 param.data.copy_(param.data + weighted_param)
@@ -338,19 +336,19 @@ def calculate_metrics(score, ytrue, yraw, ypred):
     return score
         
 def log_obj(path, obj):
-    
-    if not os.path.exists(os.path.dirname(path)):
-        try:
-            os.makedirs(os.path.dirname(path))
-        except OSError as exc: # Guard against race condition
-            if exc.errno != errno.EEXIST:
-                raise
-                
-    with open(path, 'wb') as file:
-        if isinstance(obj, nn.Module):
-            torch.save(obj, file)
-        else:
-            pickle.dump(obj, file)
+    pass
+    # if not os.path.exists(os.path.dirname(path)):
+    #     try:
+    #         os.makedirs(os.path.dirname(path))
+    #     except OSError as exc: # Guard against race condition
+    #         if exc.errno != errno.EEXIST:
+    #             raise
+    #
+    # with open(path, 'wb') as file:
+    #     if isinstance(obj, nn.Module):
+    #         torch.save(obj, file)
+    #     else:
+    #         pickle.dump(obj, file)
         
         
    

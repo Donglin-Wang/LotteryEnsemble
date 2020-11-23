@@ -15,6 +15,7 @@ class Server():
         self.client_data_num = []
         self.elapsed_comm_rounds = 0
         self.accuracies = np.zeros(args.comm_rounds)
+        self.client_accuracies = np.zeros((self.args.num_clients, self.args.comm_rounds))
         self.test_loader = test_loader
 
         for client in self.clients:
@@ -87,6 +88,9 @@ class Server():
                                   verbose=self.args.test_verbosity)
             print(f"Server accuracies over the batch + avg at the end: {eval_score['Accuracy']}")
             self.accuracies[i] = eval_score['Accuracy'][-1]
+
+            for k, m in enumerate(self.clients):
+                self.client_accuracies[k][i] = m.evaluate()
 
             # client_model_path = './log/server/client_models/client_models.model_list'
             # server_model_path = f'./log/server/server_models/average_model_round{self.elapsed_comm_rounds}.model_list'

@@ -96,3 +96,10 @@ class Client:
         self.prune_rates[round_index] = cur_prune_rate
 
         return copy_model(self.model, self.args.dataset, self.args.arch)
+
+    def evaluate(self):
+        eval_score = evaluate(self.model,
+                              self.test_loader,
+                              verbose=self.args.test_verbosity)
+        return eval_score['Accuracy'][-1]
+
