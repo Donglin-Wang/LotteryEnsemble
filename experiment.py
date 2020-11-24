@@ -4,7 +4,7 @@ from util import evaluate, prune_fixed_amount, train, copy_model, get_prune_summ
 import math
 from client import Client
 from server import Server
-from datasource import get_data
+from lottery_fl_ds import get_data
 import numpy as np
 
 # User defined update method
@@ -119,9 +119,9 @@ def run_experiment(args, client_update, server_update):
     
 if __name__ == '__main__':
     data_split = 'non-iid'
-    num_rounds = 10
+    num_rounds = 1
     num_local_epoch = 10
-    num_clients = 100
+    num_clients = 10
     batch_size = 32
     avg_logic = "lottery_fl_avg"
     running_on_cloud = False
@@ -133,9 +133,9 @@ if __name__ == '__main__':
             'args': build_args(data_split = data_split,
                                 client_epoch=num_local_epoch,
                                comm_rounds=num_rounds,
-                               frac=0.1,
+                               frac=1,
                                prune_step=0.1,
-                               acc_thresh=0.5,
+                               acc_thresh=2,
                                batch_size=batch_size,
                                num_clients=num_clients,
                                avg_logic=avg_logic),
