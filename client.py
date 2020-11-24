@@ -56,7 +56,7 @@ class Client:
         accuracies = []
         for i in range(self.args.client_epoch):
             #print(f'Epoch {i+1}')
-            train_score = train(self.client_id, i, self.model,
+            train_score = train(round_index, self.client_id, i, self.model,
                   self.train_loader, 
                   lr=self.args.lr,
                   verbose=self.args.train_verbosity)

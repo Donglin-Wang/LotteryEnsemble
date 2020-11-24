@@ -119,7 +119,8 @@ def create_model(dataset_name, model_type):
         exit()
     
 
-def train(client_id,
+def train(round,
+          client_id,
           epoch,
           model,
           train_loader,
@@ -170,7 +171,7 @@ def train(client_id,
         score[k].append(sum(v) / len(v))
     
     if verbose:
-        print(f"client={client_id}, epoch= {epoch}: ")
+        print(f"round={round}, client={client_id}, epoch= {epoch}: ")
         print(tabulate(average_scores, headers='keys', tablefmt='github'))
     
     return score
