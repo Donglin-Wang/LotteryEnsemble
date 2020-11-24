@@ -119,7 +119,9 @@ def create_model(dataset_name, model_type):
         exit()
     
 
-def train(model, 
+def train(client_id,
+          epoch,
+          model,
           train_loader,
           lr=0.001,
           verbose=True):
@@ -168,7 +170,7 @@ def train(model,
         score[k].append(sum(v) / len(v))
     
     if verbose:
-        print("Average scores for the epoch: ")
+        print(f"client={client_id}, epoch= {epoch}: ")
         print(tabulate(average_scores, headers='keys', tablefmt='github'))
     
     return score
@@ -349,7 +351,3 @@ def log_obj(path, obj):
     #         torch.save(obj, file)
     #     else:
     #         pickle.dump(obj, file)
-        
-        
-   
-
