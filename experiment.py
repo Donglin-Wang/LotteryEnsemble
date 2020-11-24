@@ -70,7 +70,10 @@ def build_args(arch='mlp',
                test_verbosity=True,
                prune_verbosity=True,
                val_freq=0,
-               avg_logic=None
+               avg_logic=None,
+               n_class = 2,
+               n_samples = 20,
+               rate_unbalance = 1
                ):
     
     args = type('', (), {})()
@@ -93,6 +96,9 @@ def build_args(arch='mlp',
     args.prune_verbosity = prune_verbosity
     args.val_freq = val_freq
     args.avg_logic = avg_logic
+    args.n_class = n_class
+    args.n_samples = n_samples
+    args.rate_unbalance = rate_unbalance
     return args
     
 def run_experiment(args, client_update, server_update):
@@ -100,7 +106,7 @@ def run_experiment(args, client_update, server_update):
     (client_loaders, test_loader), global_test_loader = get_data(args.num_clients,
                                            args.dataset, 
                                            mode=args.data_split, 
-                                           batch_size=args.batch_size)
+                                           batch_size=args.batch_size, n_samples = args.n_samples, n_class = args.n_class, rate_unbalance=args.rate_unbalance)
     
     clients = []
     
@@ -123,8 +129,11 @@ if __name__ == '__main__':
     num_local_epoch = 10
     num_clients = 10
     batch_size = 32
-    avg_logic = "standalone"
+    avg_logic = "fed_avg"
     running_on_cloud = False
+    n_class = 2
+    n_samples = 20
+    rate_unbalance = 1
 
 
     experiments = [
@@ -138,7 +147,7 @@ if __name__ == '__main__':
                                acc_thresh=2,
                                batch_size=batch_size,
                                num_clients=num_clients,
-                               avg_logic=avg_logic),
+                               avg_logic=avg_logic, rate_unbalance = rate_unbalance, n_samples = n_samples, n_class = n_class),
             'client_update': None,
             'server_update': None
         },
