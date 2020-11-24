@@ -95,7 +95,13 @@ class Server():
             self.accuracies[i] = eval_score['Accuracy'][-1]
 
             for k, m in enumerate(self.clients):
-                self.client_accuracies[k][i] = m.evaluate()
+                if k in idx_list:
+                    self.client_accuracies[k][i] = m.evaluate()
+                else:
+                    if i == 0:
+                        pass
+                    else:
+                        self.client_accuracies[k][i] = self.client_accuracies[k][i - 1]
 
             # client_model_path = './log/server/client_models/client_models.model_list'
             # server_model_path = f'./log/server/server_models/average_model_round{self.elapsed_comm_rounds}.model_list'
