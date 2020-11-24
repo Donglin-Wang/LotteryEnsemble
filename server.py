@@ -4,14 +4,13 @@ from util import average_weights, create_model, copy_model, log_obj, evaluate, f
 
 class Server():
 
-    def __init__(self, args, clients, server_update_method=None, test_loader=None):
+    def __init__(self, args, clients, test_loader=None):
 
         self.args = args
         self.comm_rounds = args.comm_rounds
         self.num_clients = args.num_clients
         self.frac = args.frac
         self.clients = clients
-        self.server_update_method = server_update_method
         self.client_data_num = []
         self.elapsed_comm_rounds = 0
         self.accuracies = np.zeros(args.comm_rounds)
@@ -35,13 +34,6 @@ class Server():
         assert self.num_clients == len(clients), "Number of client objects does not match command line input"
 
     def server_update(self):
-
-        if self.server_update_method:
-            self.server_update_method(self)
-        else:
-            self.default_server_update()
-
-    def default_server_update(self):
         self.elapsed_comm_rounds += 1
         # Recording the update and storing them in record
         self.global_models.train()
@@ -102,8 +94,3 @@ class Server():
                         pass
                     else:
                         self.client_accuracies[k][i] = self.client_accuracies[k][i - 1]
-
-            # client_model_path = './log/server/client_models/client_models.model_list'
-            # server_model_path = f'./log/server/server_models/average_model_round{self.elapsed_comm_rounds}.model_list'
-            # log_obj(client_model_path, self.client_models)
-            # log_obj(server_model_path, self.global_models)

@@ -1,54 +1,10 @@
-import torch
-import torch.nn as nn
-from util import evaluate, prune_fixed_amount, train, copy_model, get_prune_summary
-import math
+import time
+import numpy as np
 from client import Client
 from server import Server
+from genesis import ClientGenesis, ServerGenesis
 from lottery_fl_ds import get_data
-import numpy as np
 
-# User defined update method
-def client_update_method1(client_self, global_model, global_init_model):
-    print(f'***** Client #{client_self.client_id} *****', flush=True)
-    # Checking if the client object has been properly initialized
-    assert isinstance(client_self.model, nn.Module), "A model must be a PyTorch module"
-    assert 0 <= client_self.args.prune_percent <= 1, "The prune percentage must be between 0 and 1"
-    assert client_self.args.client_epoch, '"args" must contain a "client_epoch" field'
-    assert client_self.test_loader, "test_loader field does not exist. Check if the client is initialized correctly"
-    assert client_self.train_loader, "train_loader field does not exist. Check if the client is initialized correctly"
-    assert isinstance(client_self.train_loader, torch.utils.data.DataLoader), "train_loader must be a DataLoader type"
-    assert isinstance(client_self.test_loader, torch.utils.data.DataLoader), "test_loader must be a DataLoader type"
-    
-    
-    client_self.model = copy_model(global_model, 
-                                   client_self.args.dataset,
-                                   client_self.args.arch)
-    
-    num_pruned, num_params = get_prune_summary(client_self.model)
-    cur_prune_rate = num_pruned / num_params
-    prune_step = math.floor(num_params * client_self.args.prune_step)
-    
-    for i in range(client_self.args.client_epoch):
-        print(f'Epoch {i+1}')
-        train(client_self.model, 
-              client_self.train_loader, 
-              lr=client_self.args.lr,
-              verbose=client_self.args.train_verbosity)
-    
-    score = evaluate(client_self.model, 
-                     client_self.test_loader, 
-                     verbose=client_self.args.test_verbosity)
-    
-    if score['Accuracy'][0] > client_self.args.acc_thresh and cur_prune_rate < client_self.args.prune_percent:
-        
-        prune_fixed_amount(client_self.model, 
-                           prune_step,
-                           verbose=client_self.args.prune_verbosity)
-    
-    
-    return copy_model(client_self.model, client_self.args.dataset, client_self.args.arch)
-    
-    # <INSERT MORE UPDATE METHOD HERE>
 
 # Method for running the experiment
 # If you want to change the default values, change it here in the funciton signature
@@ -101,30 +57,23 @@ def build_args(arch='mlp',
     args.rate_unbalance = rate_unbalance
     return args
     
-def run_experiment(args, client_update, server_update):
-    
-    (client_loaders, test_loader), global_test_loader = get_data(args.num_clients,
-                                           args.dataset, 
-                                           mode=args.data_split, 
-                                           batch_size=args.batch_size, n_samples = args.n_samples, n_class = args.n_class, rate_unbalance=args.rate_unbalance)
-    
+def run_experiment(args, client_factory, server_factory):
+    (client_loaders, test_loader), global_test_loader =\
+        get_data(args.num_clients,
+                 args.dataset, mode=args.data_split, batch_size=args.batch_size,
+                 n_samples = args.n_samples, n_class = args.n_class, rate_unbalance=args.rate_unbalance)
+
     clients = []
-    
     for i in range(args.num_clients):
-        clients.append(Client(args, 
-                              client_loaders[i], 
-                              test_loader[i], 
-                              client_update_method=client_update,
-                              client_id=i))
+        clients.append(client_factory(args, client_loaders[i], test_loader[i], client_id=i))
     
-    server = Server(args, np.array(clients, dtype=np.object), server_update_method=server_update,
-                    test_loader=global_test_loader)
+    server = server_factory(args, np.array(clients, dtype=np.object), test_loader=global_test_loader)
     
     server.server_update()
     return server, clients
     
 if __name__ == '__main__':
-    data_split = 'non-iid'
+    data_split = 'iid'
     num_rounds = 10
     num_local_epoch = 10
     num_clients = 10
@@ -139,18 +88,32 @@ if __name__ == '__main__':
     experiments = [
         # This exepriment's setting is all default
         {
-            'args': build_args(data_split = data_split,
-                                client_epoch=num_local_epoch,
+            'args': build_args(data_split=data_split,
+                               client_epoch=num_local_epoch,
                                comm_rounds=num_rounds,
                                frac=1,
                                prune_step=0.1,
-                               acc_thresh=2,
+                               acc_thresh=0.75,
                                batch_size=batch_size,
                                num_clients=num_clients,
                                avg_logic=avg_logic, rate_unbalance = rate_unbalance, n_samples = n_samples, n_class = n_class),
-            'client_update': None,
-            'server_update': None
+            'client': Client,
+            'server': Server
         },
+        # {
+        #     'args': build_args(data_split=data_split,
+        #                        client_epoch=num_local_epoch,
+        #                        comm_rounds=num_rounds,
+        #                        frac=1,
+        #                        prune_step=0.1,
+        #                        acc_thresh=0.75,
+        #                        batch_size=batch_size,
+        #                        num_clients=num_clients,
+        #                        avg_logic=avg_logic, rate_unbalance=rate_unbalance, n_samples=n_samples,
+        #                        n_class=n_class),
+        #     'client': ClientGenesis,
+        #     'server': ServerGenesis
+        # },
         # Ashwin RJ non-iid
         # This experiment contains a custom update method that client uses
         # {
@@ -163,8 +126,8 @@ if __name__ == '__main__':
         #                        batch_size=10,
         #                        num_clients=100,
         #                        avg_logic=None),
-        #     'client_update': None,
-        #     'server_update': None
+        #     'client': None,
+        #     'server': None
         # },
         #  Ashwin RJ iid
         # {
@@ -177,8 +140,8 @@ if __name__ == '__main__':
         #                        batch_size=10,
         #                        num_clients=100,
         #                        avg_logic=None),
-        #     'client_update': None,
-        #     'server_update': None
+        #     'client': None,
+        #     'server': None
         # },
         # Fed Avg non-iid
         # {
@@ -191,8 +154,8 @@ if __name__ == '__main__':
         #                        batch_size=10,
         #                        num_clients=100,
         #                        avg_logic='fed_avg'),
-        #     'client_update': None,
-        #     'server_update': None
+        #     'client': None,
+        #     'server': None
         # },
         # Lottery FL non-iid
         # {
@@ -205,17 +168,19 @@ if __name__ == '__main__':
         #                        batch_size=10,
         #                        num_clients=100,
         #                        avg_logic='lottery_fl_avg'),
-        #     'client_update': None,
-        #     'server_update': None
+        #     'client': None,
+        #     'server': None
         # }
     ]
 
     save_path = f"{ './MyDrive' if running_on_cloud else '.' }/weights/{data_split}"
 
     experiment = experiments[0]
+    start = time.time()
     server, clients = run_experiment(experiment['args'],
-                                     experiment['client_update'],
-                                     experiment['server_update'])
+                                     experiment['client'],
+                                     experiment['server'])
+    end = time.time()
 
     print("###########################################################")
     print(f"server acc {server.accuracies}")
@@ -319,3 +284,4 @@ if __name__ == '__main__':
     fig.savefig(f"{save_path}/mu_client_losses_by_r.png")
 
 
+    print('Runtime: ', end - start)
