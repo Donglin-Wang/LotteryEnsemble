@@ -40,26 +40,15 @@ class ServerGenesis(Server):
         self.global_models.train()
 
         for i in range(0, self.comm_rounds):
-            update_or_not = [0] * self.num_clients
-            # Randomly select a fraction of users to update
-            num_selected_clients = max(int(self.frac * self.num_clients), 1)
-            idx_list = np.random.choice(range(self.num_clients),
-                                        num_selected_clients,
-                                        replace=False)
-            for idx in idx_list:
-                update_or_not[idx] = 1
-
             print('-------------------------------------', flush=True)
             print(f'Communication Round #{i}', flush=True)
             print('-------------------------------------', flush=True)
-            for j in range(len(update_or_not)):
-                if update_or_not[j]:
-                    self.clients[j].client_update(self.global_models, self.global_init_model, i)
+            for c in [self.clients[i] for i in np.random.choice(self.num_clients,
+                                                                max(int(self.frac * self.num_clients), 1),
+                                                                replace=False)]:
+                c.client_update(self.global_models, self.global_init_model, i)
 
-            models = []
-            for m in self.clients[idx_list]:
-                models.append(m.model)
-            self.global_models = fed_avg(list(map(lambda x: x.model, self.clients)),
+            self.global_models = fed_avg([c.model for c in self.clients],
                                          self.args.dataset, self.args.arch, self.client_data_num)
 
             # gather server accuracies
