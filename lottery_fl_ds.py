@@ -52,7 +52,7 @@ def get_dataset_mnist_extr_noniid(num_users, n_class, nsamples, rate_unbalance, 
                                              batch_size=batch_size, shuffle=True))
 
     for  (_,c_t_idx) in user_groups_test.items():
-        user_test_loaders.append(DataLoader(DatasetSplit(train_dataset, c_t_idx),
+        user_test_loaders.append(DataLoader(DatasetSplit(test_dataset, c_t_idx),
                                             batch_size=batch_size, shuffle=True))
 
 
@@ -233,7 +233,7 @@ def get_data(num_clients, dataset_name,
              mode="iid",
              batch_size=4,
              min_shard=1,
-             max_shard=30, n_class=2, n_samples=20, rate_unbalance=1):
+             max_shard=30, n_class=2, n_samples=20, rate_unbalance=1.0):
 
     train_data, test_data = [], []
 
@@ -316,7 +316,7 @@ if __name__ == "__main__":
     #assert len(user_loaders) == 10
 
     print("Load MNIST 10 non-iid")
-    (users_data, test_loader), global_test_loader = get_data(400, "mnist", mode="non-iid", batch_size=10)
+    (users_data, test_loader), global_test_loader = get_data(400, "mnist", mode="non-iid", batch_size=10, rate_unbalance=1)
     print(len(users_data))
     print(len(test_loader))
     print(len(global_test_loader))
