@@ -119,11 +119,11 @@ def run_experiment(args, client_update, server_update):
     
 if __name__ == '__main__':
     data_split = 'non-iid'
-    num_rounds = 1
+    num_rounds = 10
     num_local_epoch = 10
     num_clients = 10
     batch_size = 32
-    avg_logic = "lottery_fl_avg"
+    avg_logic = "standalone"
     running_on_cloud = False
 
 
@@ -290,7 +290,7 @@ if __name__ == '__main__':
 
     fig, axs = plt.subplots(1, 1)
     axs.plot(range(num_rounds), mu_client_part_accs_by_r)
-    axs.set_title("Rounds vs mean Participating Client Accuracies")
+    axs.set_title("Rounds vs mean Participating Client Train Accuracies")
     axs.set_xlabel("Rounds")
     axs.set_ylabel("Accuracies")
     fig.savefig(f"{save_path}/mu_client_part_accs_by_r.png")

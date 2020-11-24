@@ -61,7 +61,10 @@ class Server():
             for j in range(len(update_or_not)):
 
                 if update_or_not[j]:
-                    self.clients[j].client_update(self.global_models, self.global_init_model, i)
+                    if self.args.avg_logic == "standalone":
+                        self.clients[j].client_update(self.clients[j].model, self.global_init_model, i)
+                    else:
+                        self.clients[j].client_update(self.global_models, self.global_init_model, i)
                 else:
                     pass
                     # copy_model(self.clients[j].model, self.args.dataset, self.args.arch)
@@ -77,6 +80,8 @@ class Server():
                 self.global_models = lottery_fl_avg(models, self.args.dataset,
                                                           self.args.arch,
                                                           self.client_data_num[idx_list])
+            elif self.args.avg_logic == "standalone":
+                pass #no averaging in the server
             else:
                 self.global_models = average_weights(models, self.args.dataset,
                                                           self.args.arch,
