@@ -40,13 +40,14 @@ class ServerGenesis(Server):
         self.elapsed_comm_rounds += 1
         self.global_models.train()
 
-        for comm_round in range(0, self.comm_rounds):
+        for comm_round in range(self.comm_rounds):
             print('-------------------------------------', flush=True)
             print(f'Communication Round #{comm_round}', flush=True)
             print('-------------------------------------', flush=True)
-            for c in [self.clients[i] for i in np.random.choice(self.num_clients,
-                                                                max(int(self.frac * self.num_clients), 1),
-                                                                replace=False)]:
+            selected_clients = np.random.choice(self.num_clients,
+                                                max(int(self.frac * self.num_clients), 1),
+                                                replace=False)
+            for c in [self.clients[i] for i in selected_clients]:
                 c.client_update(self.global_models, self.global_init_model, comm_round)
 
             self.global_models = fed_avg([c.model for c in self.clients],
@@ -57,16 +58,20 @@ class ServerGenesis(Server):
             self.accuracies[comm_round] = eval_score['Accuracy'][-1]
             # gather client accuracies
             for k, m in enumerate(self.clients):
-                self.client_accuracies[k][comm_round] = m.evaluate()
+                if k in selected_clients:
+                    self.client_accuracies[k][comm_round] = m.evaluate()
+                elif comm_round > 0:
+                    self.client_accuracies[k][comm_round] = self.client_accuracies[k][comm_round - 1]
+
 
             # prune global model if appropriate
             num_pruned, num_params = get_prune_summary(self.global_models)
             cur_prune_rate = num_pruned / num_params
-            if self.client_accuracies[:,
-               comm_round].mean() > self.args.acc_thresh and cur_prune_rate < self.args.prune_percent:
+            if self.client_accuracies[:, comm_round].mean() > self.args.acc_thresh \
+                    and cur_prune_rate < self.args.prune_percent:
                 prune_step = math.floor(num_params * self.args.prune_step)
                 prune_fixed_amount(self.global_models, prune_step, verbose=self.args.prune_verbosity)
-                self.global_models = copy_model(global_init_model,
+                self.global_models = copy_model(self.global_init_model,
                                                 self.args.dataset,
                                                 self.args.arch,
                                                 dict(self.global_models.named_buffers()))
