@@ -1,41 +1,41 @@
-import time
+import datetime, time, os
 import numpy as np
+import matplotlib.pyplot as plt
 from client import Client
 from server import Server
 from genesis import ClientGenesis, ServerGenesis
 from lottery_fl_ds import get_data
 
 
-# Method for running the experiment
-# If you want to change the default values, change it here in the funciton signature
 def build_args(arch='mlp',
                dataset='mnist',
                data_split='non-iid',
+               client=Client,
+               server=Server,
+               n_class = 2,
+               n_samples = 20,
+               rate_unbalance = 1,
+               avg_logic=None,
                num_clients=10,
-               lr=0.001,
-               batch_size=4,
                comm_rounds=10,
                frac=0.3,
-               client_epoch=10,
-               acc_thresh=0.5,
-               prune_iterations=None,
-               prune_percent=0.45,
                prune_step=0.15,
-               prune_type=None,
+               prune_percent=0.45,
+               acc_thresh=0.5,
+               client_epoch=10,
+               batch_size=4,
+               lr=0.001,
                train_verbosity=True,
                test_verbosity=True,
                prune_verbosity=True,
-               val_freq=0,
-               avg_logic=None,
-               n_class = 2,
-               n_samples = 20,
-               rate_unbalance = 1
                ):
     
     args = type('', (), {})()
     args.arch = arch
     args.dataset = dataset
     args.data_split = data_split
+    args.client = client
+    args.server = server
     args.num_clients = num_clients
     args.lr = lr
     args.batch_size = batch_size
@@ -43,157 +43,35 @@ def build_args(arch='mlp',
     args.frac = frac
     args.client_epoch = client_epoch
     args.acc_thresh = acc_thresh
-    args.prune_iterations = prune_iterations
     args.prune_percent = prune_percent
     args.prune_step= prune_step
-    args.prune_type = prune_type
     args.train_verbosity = train_verbosity
     args.test_verbosity = test_verbosity
     args.prune_verbosity = prune_verbosity
-    args.val_freq = val_freq
     args.avg_logic = avg_logic
     args.n_class = n_class
     args.n_samples = n_samples
     args.rate_unbalance = rate_unbalance
     return args
-    
-def run_experiment(args, client_factory, server_factory):
-    (client_loaders, test_loader), global_test_loader =\
-        get_data(args.num_clients,
-                 args.dataset, mode=args.data_split, batch_size=args.batch_size,
-                 n_samples = args.n_samples, n_class = args.n_class, rate_unbalance=args.rate_unbalance)
-
-    clients = []
-    for i in range(args.num_clients):
-        clients.append(client_factory(args, client_loaders[i], test_loader[i], client_id=i))
-    
-    server = server_factory(args, np.array(clients, dtype=np.object), test_loader=global_test_loader)
-    
-    server.server_update()
-    return server, clients
-    
-if __name__ == '__main__':
-    data_split = 'iid'
-    num_rounds = 10
-    num_local_epoch = 10
-    num_clients = 10
-    batch_size = 32
-    avg_logic = "fed_avg"
-    running_on_cloud = False
-    n_class = 2
-    n_samples = 20
-    rate_unbalance = 1
 
 
-    experiments = [
-        # This exepriment's setting is all default
-        {
-            'args': build_args(data_split=data_split,
-                               client_epoch=num_local_epoch,
-                               comm_rounds=num_rounds,
-                               frac=1,
-                               prune_step=0.1,
-                               acc_thresh=0.75,
-                               batch_size=batch_size,
-                               num_clients=num_clients,
-                               avg_logic=avg_logic, rate_unbalance = rate_unbalance, n_samples = n_samples, n_class = n_class),
-            'client': Client,
-            'server': Server
-        },
-        # {
-        #     'args': build_args(data_split=data_split,
-        #                        client_epoch=num_local_epoch,
-        #                        comm_rounds=num_rounds,
-        #                        frac=1,
-        #                        prune_step=0.1,
-        #                        acc_thresh=0.75,
-        #                        batch_size=batch_size,
-        #                        num_clients=num_clients,
-        #                        avg_logic=avg_logic, rate_unbalance=rate_unbalance, n_samples=n_samples,
-        #                        n_class=n_class),
-        #     'client': ClientGenesis,
-        #     'server': ServerGenesis
-        # },
-        # Ashwin RJ non-iid
-        # This experiment contains a custom update method that client uses
-        # {
-        #     'args': build_args(data_split = 'non-iid',
-        #                        client_epoch=10,
-        #                        comm_rounds=10,
-        #                        frac=0.1,
-        #                        prune_step=0.1,
-        #                        acc_thresh=2,
-        #                        batch_size=10,
-        #                        num_clients=100,
-        #                        avg_logic=None),
-        #     'client': None,
-        #     'server': None
-        # },
-        #  Ashwin RJ iid
-        # {
-        #     'args': build_args(data_split = 'iid',
-        #                        client_epoch=10,
-        #                        comm_rounds=10,
-        #                        frac=0.1,
-        #                        prune_step=0.1,
-        #                        acc_thresh=2,
-        #                        batch_size=10,
-        #                        num_clients=100,
-        #                        avg_logic=None),
-        #     'client': None,
-        #     'server': None
-        # },
-        # Fed Avg non-iid
-        # {
-        #     'args': build_args(data_split = 'non-iid',
-        #                        client_epoch=10,
-        #                        comm_rounds=10,
-        #                        frac=0.1,
-        #                        prune_step=0.1,
-        #                        acc_thresh=2,
-        #                        batch_size=10,
-        #                        num_clients=100,
-        #                        avg_logic='fed_avg'),
-        #     'client': None,
-        #     'server': None
-        # },
-        # Lottery FL non-iid
-        # {
-        #     'args': build_args(data_split = 'non-iid',
-        #                        client_epoch=10,
-        #                        comm_rounds=10,
-        #                        frac=0.1,
-        #                        prune_step=0.1,
-        #                        acc_thresh=0.5,
-        #                        batch_size=10,
-        #                        num_clients=100,
-        #                        avg_logic='lottery_fl_avg'),
-        #     'client': None,
-        #     'server': None
-        # }
-    ]
-
-    save_path = f"{ './MyDrive' if running_on_cloud else '.' }/weights/{data_split}"
-
-    experiment = experiments[0]
-    start = time.time()
-    server, clients = run_experiment(experiment['args'],
-                                     experiment['client'],
-                                     experiment['server'])
-    end = time.time()
-
+def log_experiment(server, clients, exp_name, exp_settings):
     print("###########################################################")
     print(f"server acc {server.accuracies}")
     print("###########################################################")
     for i, c in enumerate(clients):
-        print(f"client #{i} accuracies {c.accuracies}")
-        print(f"client #{i} losses {c.losses}")
-        print(f"client #{i} prune_rates {c.prune_rates}")
+        print(f"client #{i} accuracies\n{c.accuracies}")
+        print(f"client #{i} losses\n{c.losses}")
+        print(f"client #{i} prune_rates\n{c.prune_rates}")
         print("\n\n\n")
 
-    import numpy as np
-    num_clients = len(clients)
+    num_clients     = exp_settings.num_clients
+    num_rounds      = exp_settings.comm_rounds
+    num_local_epoch = exp_settings.client_epoch
+    save_path_root  = './MyDrive' if exp_settings.running_on_cloud else '.'
+    save_path       = os.path.join(save_path_root, exp_settings.log_folder, exp_name)
 
+    os.makedirs(save_path, exist_ok=True)
 
     mu_client_losses = np.zeros((num_clients, num_rounds, num_local_epoch))
 
@@ -248,7 +126,6 @@ if __name__ == '__main__':
         server_accs = np.array(server.accuracies)
         np.save(f, server_accs)
 
-    import matplotlib.pyplot as plt
     fig, axs = plt.subplots(1, 1)
     axs.plot(range(num_rounds), server_accs)
     axs.set_title("Rounds vs Server Accuracies")
@@ -284,4 +161,36 @@ if __name__ == '__main__':
     fig.savefig(f"{save_path}/mu_client_losses_by_r.png")
 
 
-    print('Runtime: ', end - start)
+def run_experiment(args, overrides):
+    for  k, v in overrides.items():
+        setattr(args, k, v)
+
+    (client_loaders, test_loader), global_test_loader =\
+        get_data(args.num_clients,
+                 args.dataset, mode=args.data_split, batch_size=args.batch_size,
+                 n_samples = args.n_samples, n_class = args.n_class, rate_unbalance=args.rate_unbalance)
+
+    clients = []
+    for i in range(args.num_clients):
+        clients.append(args.client(args, client_loaders[i], test_loader[i], client_id=i))
+    
+    server = args.server(args, np.array(clients, dtype=np.object), test_loader=global_test_loader)
+    
+    server.server_update()
+    return server, clients
+
+
+def run_experiments(experiments, overrides):
+    run_times = {}
+    start = time.time()
+    for exp_name, exp_settings in experiments.items():
+        run_start = time.time()
+        server, clients = run_experiment(exp_settings, overrides)
+        log_experiment(server, clients, exp_name, exp_settings)
+        run_times[exp_name] = round(time.time() - run_start)
+    end = time.time()
+
+    print('Runtimes:')
+    for exp_name, t in run_times.items():
+        print(f'  {exp_name}: {str(datetime.timedelta(seconds=t))}')
+    print(f'  TOTAL: {str(datetime.timedelta(seconds=round(end - start)))}')

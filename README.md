@@ -46,9 +46,7 @@ Here are the configs shared across the program in the `args` variable. To access
 
 **Configs for LTH**
 
-- `--prune_type` : Type of pruning 
 - `--prune_percent`	: Percentage of weight to be pruned after each cycle. 
-- `--prune_iterations`	: Number of cycle of pruning that should be done. 
 
 - `--batch_size`	: Batch size.
 	- Default : `4`
