@@ -31,6 +31,8 @@ def fed_avg(models, dataset, arch, data_nums):
             for i in range(num_models):
                 weighted_param = torch.mul(weights[i][name], data_nums[i])
                 param.data.copy_(param.data + weighted_param)
+        avg = torch.div(param.data, num_models)
+        param.data.copy_(avg)
     return new_model
 
 def lottery_fl_avg(models, dataset, arch, data_nums):
@@ -62,7 +64,8 @@ def lottery_fl_avg(models, dataset, arch, data_nums):
 
                 weighted_param = torch.mul(weights[i][name], data_nums[i])
                 param.data.copy_(param.data + weighted_param)
-
+            avg = torch.div(param.data, num_models)
+            param.data.copy_(avg)
     return new_model
 
 def average_weights(models, dataset, arch, data_nums):
