@@ -114,11 +114,11 @@ def log_experiment(server, clients, exp_name, exp_settings):
     with open(f'{save_path}/mu_client_part_accs_by_r.npy', 'wb') as f:
         np.save(f, mu_client_part_accs_by_r)
 
-    mu_client_pr_rate_by_r = np.ma.masked_equal(mu_client_pr_rates.mean(axis=0), 0).data
+    mu_client_pr_rate_by_r = mu_client_pr_rates.mean(axis=0)
     with open(f'{save_path}/mu_client_pr_rate_by_r.npy', 'wb') as f:
         np.save(f, mu_client_pr_rate_by_r)
 
-    mu_client_accs_by_r = np.ma.masked_equal(server.client_accuracies, 0).mean(axis=0).data
+    mu_client_accs_by_r = server.client_accuracies.mean(axis=0)
     with open(f'{save_path}/mu_client_accs_by_r.npy', 'wb') as f:
         np.save(f, mu_client_accs_by_r)
 
