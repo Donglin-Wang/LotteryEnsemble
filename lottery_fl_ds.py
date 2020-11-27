@@ -25,7 +25,7 @@ class DatasetSplit(Dataset):
 
 
 
-
+#MNIST Non-IID Dataset split
 def get_dataset_mnist_extr_noniid(num_users, n_class, nsamples, rate_unbalance, batch_size):
     data_dir = '../data/mnist/'
     apply_transform = transforms.Compose([
@@ -116,6 +116,101 @@ def mnist_extr_noniid(train_dataset, test_dataset, num_users, n_class, num_sampl
 
 # Given each user euqal number of samples if possible. If not, the last user
 # gets whatever is left after other users had their shares
+
+
+
+#CIFAR10 Non-IID Dataset split
+def get_dataset_cifar10_extr_noniid(num_users, n_class, nsamples, rate_unbalance, batch_size):
+    data_dir = '../data/cifar/'
+    apply_transform = transforms.Compose(
+        [transforms.ToTensor(),
+         transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))])
+    train_dataset = datasets.CIFAR10(data_dir, train=True, download=True,
+                                   transform=apply_transform)
+
+    test_dataset = datasets.CIFAR10(data_dir, train=False, download=True,
+                                      transform=apply_transform)
+
+    # Chose euqal splits for every user
+    user_groups_train, user_groups_test = cifar_extr_noniid(train_dataset, test_dataset, num_users, n_class, nsamples, rate_unbalance)
+
+    #Training data loaders
+    user_train_loaders = []
+    #Test data loaders
+    user_test_loaders = []
+
+
+    #Trainning data
+    for (_,c_t_idx) in user_groups_train.items():
+        user_train_loaders.append(DataLoader(DatasetSplit(train_dataset, c_t_idx),
+                                             batch_size=batch_size, shuffle=True))
+
+    for  (_,c_t_idx) in user_groups_test.items():
+        user_test_loaders.append(DataLoader(DatasetSplit(test_dataset, c_t_idx),
+                                            batch_size=batch_size, shuffle=True))
+
+    return user_train_loaders, user_test_loaders
+
+
+def cifar_extr_noniid(train_dataset, test_dataset, num_users, n_class, num_samples, rate_unbalance):
+    num_shards_train, num_imgs_train = int(50000/num_samples), num_samples
+    num_classes = 10
+    num_imgs_perc_test, num_imgs_test_total = 1000, 10000
+    assert(n_class * num_users <= num_shards_train)
+    assert(n_class <= num_classes)
+    idx_class = [i for i in range(num_classes)]
+    idx_shard = [i for i in range(num_shards_train)]
+    dict_users_train = {i: np.array([]) for i in range(num_users)}
+    dict_users_test = {i: np.array([]) for i in range(num_users)}
+    idxs = np.arange(num_shards_train*num_imgs_train)
+    # labels = dataset.train_labels.numpy()
+    labels = np.array(train_dataset.targets)
+    idxs_test = np.arange(num_imgs_test_total)
+    labels_test = np.array(test_dataset.targets)
+    #labels_test_raw = np.array(test_dataset.targets)
+
+    # sort labels
+    idxs_labels = np.vstack((idxs, labels))
+    idxs_labels = idxs_labels[:, idxs_labels[1, :].argsort()]
+    idxs = idxs_labels[0, :]
+    labels = idxs_labels[1, :]
+
+    idxs_labels_test = np.vstack((idxs_test, labels_test))
+    idxs_labels_test = idxs_labels_test[:, idxs_labels_test[1, :].argsort()]
+    idxs_test = idxs_labels_test[0, :]
+    #print(idxs_labels_test[1, :])
+
+
+    # divide and assign
+    for i in range(num_users):
+        user_labels = np.array([])
+        rand_set = set(np.random.choice(idx_shard, n_class, replace=False))
+        idx_shard = list(set(idx_shard) - rand_set)
+        unbalance_flag = 0
+        for rand in rand_set:
+            if unbalance_flag == 0:
+                dict_users_train[i] = np.concatenate(
+                    (dict_users_train[i], idxs[rand*num_imgs_train:(rand+1)*num_imgs_train]), axis=0)
+                user_labels = np.concatenate((user_labels, labels[rand*num_imgs_train:(rand+1)*num_imgs_train]), axis=0)
+            else:
+                dict_users_train[i] = np.concatenate(
+                    (dict_users_train[i], idxs[rand*num_imgs_train:int((rand+rate_unbalance)*num_imgs_train)]), axis=0)
+                user_labels = np.concatenate((user_labels, labels[rand*num_imgs_train:int((rand+rate_unbalance)*num_imgs_train)]), axis=0)
+            unbalance_flag = 1
+        user_labels_set = set(user_labels)
+        #print(user_labels_set)
+        #print(user_labels)
+        for label in user_labels_set:
+            dict_users_test[i] = np.concatenate((dict_users_test[i], idxs_test[int(label)*num_imgs_perc_test:int(label+1)*num_imgs_perc_test]), axis=0)
+        #print(set(labels_test_raw[dict_users_test[i].astype(int)]))
+
+    return dict_users_train, dict_users_test
+
+
+
+
+
+
 
 def iid_split(num_clients,
               train_data,
@@ -291,6 +386,8 @@ def get_data(num_clients, dataset_name,
 
         if dataset_name == "mnist":
             return get_dataset_mnist_extr_noniid(num_clients, n_class, n_samples, rate_unbalance, batch_size), global_test_loader
+        elif dataset_name == "cifar10":
+            return get_dataset_cifar10_extr_noniid(num_clients, n_class, n_samples, rate_unbalance, batch_size), global_test_loader
         else:
             return non_iid_split(num_clients,
                                  train_data,
@@ -315,8 +412,8 @@ if __name__ == "__main__":
     #user_loaders, test_loader = get_data(10, "mnist")
     #assert len(user_loaders) == 10
 
-    print("Load MNIST 10 non-iid")
-    (users_data, test_loader), global_test_loader = get_data(400, "mnist", mode="non-iid", batch_size=10, rate_unbalance=1)
+    print("Load cifar10 non-iid")
+    (users_data, test_loader), global_test_loader = get_data(400, "cifar10", mode="non-iid", batch_size=10, rate_unbalance=1)
     print(len(users_data))
     print(len(test_loader))
     print(len(global_test_loader))
