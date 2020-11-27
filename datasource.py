@@ -111,11 +111,6 @@ def non_iid_split(num_clients,
                                                  batch_sampler=cur_sampler_test)
         test_loaders.append(cur_loader_test)
 
-<<<<<<< HEAD
-=======
-    
-
->>>>>>> 67c7411... Non-iid data now randomizes the data within each client
     return user_loaders, test_loaders
 
 def non_iid_unequal_split(num_clients, 
@@ -280,11 +275,7 @@ if __name__ == "__main__":
     #assert len(user_loaders) == 10
     
     print("Load MNIST 10 non-iid")
-<<<<<<< HEAD
     (users_data, test_loader), global_test_loader = get_data(400, "mnist", mode="non-iid", batch_size=32)
-=======
-    users_data, test_loader = get_data(400, "mnist", mode="non-iid", batch_size=32)
->>>>>>> 67c7411... Non-iid data now randomizes the data within each client
     print(len(users_data))
     print(len(test_loader))
     print(len(global_test_loader))
@@ -303,12 +294,7 @@ if __name__ == "__main__":
         count += 1
     print(count)
 
-<<<<<<< HEAD
     print(len(users_data[0]))
     print(len(global_test_loader))
-=======
-
-
->>>>>>> 67c7411... Non-iid data now randomizes the data within each client
 
     
