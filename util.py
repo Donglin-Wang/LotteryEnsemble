@@ -106,7 +106,6 @@ def create_model(dataset_name, model_type):
         from archs.mnist import mlp, cnn
 
     elif dataset_name == "cifar10":
-        #from models import CNNCifar
         from archs.cifar10 import mlp, cnn
 
     else: 
