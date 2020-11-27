@@ -20,9 +20,12 @@ if __name__ == '__main__':
 
     experiments = {
 <<<<<<< HEAD
+<<<<<<< HEAD
         data_split:  # this key determines the output folder name under log_folder
             build_args(arch='cnn',
 =======
+=======
+>>>>>>> ecd02924cbcfe3be75ca8ea2fc7876216a0b74e1
         'fed_avg_ashwin':  # this key determines the output folder name under log_folder
             build_args(arch='mlp',
 >>>>>>> a7f4d14... adding fed_ashiwin + fed_ashiwn lottery case
