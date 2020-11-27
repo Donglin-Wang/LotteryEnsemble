@@ -274,8 +274,8 @@ if __name__ == "__main__":
     #user_loaders, test_loader = get_data(10, "mnist")
     #assert len(user_loaders) == 10
     
-    print("Load MNIST 10 non-iid")
-    (users_data, test_loader), global_test_loader = get_data(400, "mnist", mode="non-iid", batch_size=32)
+    print("Load cifar10 10 non-iid")
+    (users_data, test_loader), global_test_loader = get_data(400, "cifar10", mode="non-iid", batch_size=32)
     print(len(users_data))
     print(len(test_loader))
     print(len(global_test_loader))

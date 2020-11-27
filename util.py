@@ -100,10 +100,11 @@ def copy_model(model, dataset, arch, source_buff=None):
 def create_model(dataset_name, model_type):
     
     if dataset_name == "mnist": 
-        from archs.mnist import mlp
+        from archs.mnist import mlp, cnn
+
     elif dataset_name == "cifar10":
         #from models import CNNCifar
-        from archs.cifar10 import mlp, CNNCifar
+        from archs.cifar10 import mlp, cnn
 
     else: 
         print("You did not enter the name of a supported architecture for this dataset")
@@ -117,13 +118,15 @@ def create_model(dataset_name, model_type):
         # will be incompatible
         prune_fixed_amount(new_model, 0, verbose=False)
         return new_model
-    elif model_type == 'CNNCifar':
-        new_model = CNNCifar.CNNCifar()
+
+    elif model_type == 'cnn':
+        new_model = cnn.CNN()
         prune_fixed_amount(new_model, 0, verbose=False)
+        return new_model
 
     else:
         print("You did not enter the name of a supported architecture for this dataset")
-        print("Supported datasets: {}, {}".format('"CIFAR10"', '"MNIST"'))
+        print("Supported models: {}, {}".format('"mlp"', '"cnn"'))
         exit()
     
 

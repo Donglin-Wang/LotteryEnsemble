@@ -21,8 +21,8 @@ if __name__ == '__main__':
 
     experiments = {
         data_split:  # this key determines the output folder name under log_folder
-            build_args(arch='mlp',
-                       dataset='cifar10',
+            build_args(arch='cnn',
+                       dataset='mnist',
                        data_split=data_split,
                        client=Client,
                        server=Server,
