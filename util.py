@@ -12,9 +12,64 @@ from tqdm import tqdm
 from tabulate import tabulate
 import torch.nn.utils.prune as prune
 
+def fed_avg(models, dataset, arch, data_nums):
+    new_model = create_model(dataset, arch) #copy_model(server_model, dataset, arch, source_buff=dict(server_model.named_buffers()))
+    num_models = len(models)
+    num_data_total = sum(data_nums)
+    data_nums = data_nums / num_data_total
+    with torch.no_grad():
+        # Getting all the weights and masks from original models
+        weights, masks = [], []
+        for i in range(num_models):
+            weights.append(dict(models[i].named_parameters()))
+            masks.append(dict(models[i].named_buffers()))
+
+        for name, param in new_model.named_parameters():
+            param.data.copy_(torch.zeros_like(param.data))
+        # Averaging weights
+        for name, param in new_model.named_parameters():
+            for i in range(num_models):
+                weighted_param = torch.mul(weights[i][name], data_nums[i])
+                param.data.copy_(param.data + weighted_param)
+        avg = torch.div(param.data, num_models)
+        param.data.copy_(avg)
+    return new_model
+
+def lottery_fl_avg(models, dataset, arch, data_nums):
+    new_model = create_model(dataset, arch) #copy_model(server_model, dataset, arch, source_buff=dict(server_model.named_buffers()))
+    num_models = len(models)
+    num_data_total = sum(data_nums)
+    data_nums = data_nums / num_data_total
+    with torch.no_grad():
+        # Getting all the weights and masks from original models
+        weights, masks = [], []
+        for i in range(num_models):
+            weights.append(dict(models[i].named_parameters()))
+            masks.append(dict(models[i].named_buffers()))
+
+        for name, param in new_model.named_parameters():
+            param.data.copy_(torch.zeros_like(param.data))
+        # Averaging weights
+        for name, param in new_model.named_parameters():
+            for i in range(num_models):
+                parameters_to_prune, num_global_weights = get_prune_params(models[i])
+
+                model_masks = masks[i]
+
+                try:
+                    layer_mask = model_masks[name.strip("_orig") + "_mask"]
+                    weights[i][name] *= layer_mask
+                except Exception as e:
+                    pass
+
+                weighted_param = torch.mul(weights[i][name], data_nums[i])
+                param.data.copy_(param.data + weighted_param)
+            avg = torch.div(param.data, num_models)
+            param.data.copy_(avg)
+    return new_model
 
 def average_weights(models, dataset, arch, data_nums):
-    new_model = copy_model(models[0], dataset, arch)
+    new_model = create_model(dataset, arch) #copy_model(server_model, dataset, arch, source_buff=dict(server_model.named_buffers()))
     num_models = len(models)
     num_data_total = sum(data_nums)
     with torch.no_grad():
@@ -23,28 +78,16 @@ def average_weights(models, dataset, arch, data_nums):
         for i in range(num_models):
             weights.append(dict(models[i].named_parameters()))
             masks.append(dict(models[i].named_buffers()))
+
+        for name, param in new_model.named_parameters():
+            param.data.copy_(torch.zeros_like(param.data))
         # Averaging weights
         for name, param in new_model.named_parameters():
-            for i in range(1, num_models):
-                weighted_param = torch.mul(weights[i][name], data_nums[i])
+            for i in range(num_models):
+                weighted_param = weights[i][name] #torch.mul(weights[i][name], data_nums[i])
                 param.data.copy_(param.data + weighted_param)
-            avg = torch.div(param.data, num_data_total)
+            avg = torch.div(param.data, num_models)
             param.data.copy_(avg)
-        # Averaging masks
-        for name, buffer in new_model.named_buffers():
-            # for i in range(1, num_models):
-            #     weighted_masks = torch.mul(masks[i][name], data_nums[i])
-            #     buffer.data.copy_(buffer.data + weighted_masks)
-            avg = torch.ones_like(buffer.data)
-
-            # The code below clips all the values to [0.0, 1.0] of the new model.
-            # This might seems trivial, but if you don't do this, you will get
-            # an error message saying that there's not parameters to prune.
-            # This has something to do with how pruning is handled internally
-
-            #avg = torch.clamp(avg, 0.0, 1.0)
-            #avg = torch.round(avg)
-            buffer.data.copy_(avg)
     return new_model
 
 def copy_model(model, dataset, arch, source_buff=None):
@@ -60,7 +103,11 @@ def copy_model(model, dataset, arch, source_buff=None):
 def create_model(dataset_name, model_type):
     
     if dataset_name == "mnist": 
-        from archs.mnist import mlp
+        from archs.mnist import mlp, cnn
+
+    elif dataset_name == "cifar10":
+        from archs.cifar10 import mlp, cnn
+
     else: 
         print("You did not enter the name of a supported architecture for this dataset")
         print("Supported datasets: {}, {}".format('"CIFAR10"', '"MNIST"'))
@@ -73,13 +120,22 @@ def create_model(dataset_name, model_type):
         # will be incompatible
         prune_fixed_amount(new_model, 0, verbose=False)
         return new_model
+
+    elif model_type == 'cnn':
+        new_model = cnn.CNN()
+        prune_fixed_amount(new_model, 0, verbose=False)
+        return new_model
+
     else:
         print("You did not enter the name of a supported architecture for this dataset")
-        print("Supported datasets: {}, {}".format('"CIFAR10"', '"MNIST"'))
+        print("Supported models: {}, {}".format('"mlp"', '"cnn"'))
         exit()
     
 
-def train(model, 
+def train(round,
+          client_id,
+          epoch,
+          model,
           train_loader,
           lr=0.001,
           verbose=True):
@@ -87,6 +143,7 @@ def train(model,
     loss_function = nn.CrossEntropyLoss()
     opt = optim.Adam(model.parameters(), lr=lr)
     num_batch = len(train_loader)
+    model.train()
     metric_names = ['Loss',
                     'Accuracy', 
                     'Balanced Accuracy',
@@ -127,7 +184,7 @@ def train(model,
         score[k].append(sum(v) / len(v))
     
     if verbose:
-        print("Average scores for the epoch: ")
+        print(f"round={round}, client={client_id}, epoch= {epoch}: ")
         print(tabulate(average_scores, headers='keys', tablefmt='github'))
     
     return score
@@ -295,20 +352,16 @@ def calculate_metrics(score, ytrue, yraw, ypred):
     return score
         
 def log_obj(path, obj):
-    
-    if not os.path.exists(os.path.dirname(path)):
-        try:
-            os.makedirs(os.path.dirname(path))
-        except OSError as exc: # Guard against race condition
-            if exc.errno != errno.EEXIST:
-                raise
-                
-    with open(path, 'wb') as file:
-        if isinstance(obj, nn.Module):
-            torch.save(obj, file)
-        else:
-            pickle.dump(obj, file)
-        
-        
-   
-
+    pass
+    # if not os.path.exists(os.path.dirname(path)):
+    #     try:
+    #         os.makedirs(os.path.dirname(path))
+    #     except OSError as exc: # Guard against race condition
+    #         if exc.errno != errno.EEXIST:
+    #             raise
+    #
+    # with open(path, 'wb') as file:
+    #     if isinstance(obj, nn.Module):
+    #         torch.save(obj, file)
+    #     else:
+    #         pickle.dump(obj, file)

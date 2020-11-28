@@ -8,13 +8,10 @@ class Client:
                  args, 
                  train_loader, 
                  test_loader,
-                 client_update_method=None, 
                  client_id=None):
-        
         self.args = args
         self.model = create_model(self.args.dataset, self.args.arch)
         self.init_model = copy_model(self.model, self.args.dataset, self.args.arch)
-        self.client_update_method = client_update_method
         self.test_loader = test_loader
         self.train_loader = train_loader
         self.client_id = client_id
@@ -22,17 +19,10 @@ class Client:
         self.accuracies = np.zeros((args.comm_rounds, self.args.client_epoch))
         self.losses = np.zeros((args.comm_rounds, self.args.client_epoch))
         self.prune_rates = np.zeros(args.comm_rounds)
-        
-        
         assert self.model, "Something went wrong and the model cannot be initialized"
-        
-    def client_update(self, global_model, global_init_weight, i):
-        if self.client_update_method:
-            return self.client_update_method(self, global_model, global_init_weight, i)
-        else:
-            return self.default_client_update_method(global_model, global_init_weight, i)
-        
-    def default_client_update_method(self, global_model, global_init_model, round_index):
+
+
+    def client_update(self, global_model, global_init_model, round_index):
         self.elapsed_comm_rounds += 1
         print(f'***** Client #{self.client_id} *****', flush=True)
         self.model = copy_model(global_model,
@@ -58,11 +48,15 @@ class Client:
             prune_fixed_amount(self.model, 
                                prune_step,
                                verbose=self.args.prune_verbosity)
+            self.model = copy_model(global_init_model,
+                                    self.args.dataset,
+                                    self.args.arch,
+                                    dict(self.model.named_buffers()))
         losses = []
         accuracies = []
         for i in range(self.args.client_epoch):
             #print(f'Epoch {i+1}')
-            train_score = train(self.model, 
+            train_score = train(round_index, self.client_id, i, self.model,
                   self.train_loader, 
                   lr=self.args.lr,
                   verbose=self.args.train_verbosity)
@@ -92,3 +86,10 @@ class Client:
         self.prune_rates[round_index] = cur_prune_rate
 
         return copy_model(self.model, self.args.dataset, self.args.arch)
+
+    def evaluate(self):
+        eval_score = evaluate(self.model,
+                              self.test_loader,
+                              verbose=self.args.test_verbosity)
+        return eval_score['Accuracy'][-1]
+
