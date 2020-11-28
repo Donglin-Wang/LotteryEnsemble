@@ -398,7 +398,7 @@ if __name__ == "__main__":
     # print(np.random.permutation(l))
 
     print("Load MNIST 10 non-iid")
-    users_data, global_test_loader = get_data2(400, "mnist",20, 5, 10, mode="non-iid", batch_size=32)
+    users_data, global_test_loader = get_data2(400, "mnist", 20, 5, 10, mode="non-iid", batch_size=32)
     train_loaders, val_loaders, test_loaders  = users_data
 
     count = 0
