@@ -171,7 +171,7 @@ def log_experiment(server, clients, exp_name, exp_settings):
 def run_experiment(args, overrides):
     for  k, v in overrides.items():
         setattr(args, k, v)
-
+    args.log_folder = overrides['log_folder'] + '/' + overrides['exp_name']
     (client_loaders, test_loader), global_test_loader =\
         get_data(args.num_clients,
                  args.dataset, mode=args.data_split, batch_size=args.batch_size,
@@ -191,6 +191,7 @@ def run_experiments(experiments, overrides):
     run_times = {}
     start = time.time()
     for exp_name, exp_settings in experiments.items():
+        overrides['exp_name'] = exp_name
         run_start = time.time()
         server, clients = run_experiment(exp_settings, overrides)
         log_experiment(server, clients, exp_name, exp_settings)

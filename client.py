@@ -41,12 +41,6 @@ class Client:
                          self.test_loader,
                          verbose=self.args.test_verbosity)
         
-        eval_log_path = f'./log/clients/client{self.client_id}/'\
-                        f'round{self.elapsed_comm_rounds}/'\
-                        f'eval_score_round{self.elapsed_comm_rounds}.pickle'
-        log_obj(eval_log_path, eval_score)
-        
-        
         if eval_score['Accuracy'][0] > self.args.acc_thresh and cur_prune_rate < self.args.prune_percent:
             prune_fixed_amount(self.model, 
                                self.args.prune_step,
@@ -58,23 +52,16 @@ class Client:
         losses = []
         accuracies = []
         for i in range(self.args.client_epoch):
-            #print(f'Epoch {i+1}')
             train_score = train(round_index, self.client_id, i, self.model,
                   self.train_loader, 
                   lr=self.args.lr,
                   verbose=self.args.train_verbosity)
-            # epoch_path = train_log_path + f'client_model_epoch{i}.torch'
-            train_log_path = f'./log/clients/client{self.client_id}'\
-                             f'/round{self.elapsed_comm_rounds}/'
+           
             losses.append(train_score['Loss'][-1].data.item())
             accuracies.append(train_score['Accuracy'][-1])
-            epoch_score_path = train_log_path + f'client_train_score_epoch{i}.pickle'
-            # log_obj(epoch_path, self.model)
-            log_obj(epoch_score_path, train_score)
+           
             
-        mask_log_path = f'./log/clients/client{self.client_id}'\
-                        f'/round{self.elapsed_comm_rounds}/'\
-                        f'client_mask.pickle'
+        mask_log_path = f'{self.args.log_folder}/round{round_index}/c{self.client_id}.mask'
         client_mask = dict(self.model.named_buffers())
         log_obj(mask_log_path, client_mask)
 
