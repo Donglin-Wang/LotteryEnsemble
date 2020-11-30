@@ -69,8 +69,7 @@ class ServerGenesis(Server):
             cur_prune_rate = num_pruned / num_params
             if self.client_accuracies[:, comm_round].mean() > self.args.acc_thresh \
                     and cur_prune_rate < self.args.prune_percent:
-                prune_step = math.floor(num_params * self.args.prune_step)
-                prune_fixed_amount(self.global_models, prune_step, verbose=self.args.prune_verbosity)
+                prune_fixed_amount(self.global_models, self.args.prune_step, verbose=self.args.prune_verbosity)
                 self.global_models = copy_model(self.global_init_model,
                                                 self.args.dataset,
                                                 self.args.arch,
