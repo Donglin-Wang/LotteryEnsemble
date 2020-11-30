@@ -2,6 +2,9 @@ import math
 from util import train, evaluate, prune_fixed_amount, copy_model, \
                  create_model, get_prune_summary, log_obj
 import numpy as np
+import torch 
+torch.manual_seed(0)
+np.random.seed(0)
 
 class Client:
     def __init__(self, 
@@ -32,7 +35,7 @@ class Client:
         
         num_pruned, num_params = get_prune_summary(self.model)
         cur_prune_rate = num_pruned / num_params
-        prune_step = math.floor(num_params * self.args.prune_step)
+        #prune_step = math.floor(num_params * self.args.prune_step)
         
         eval_score = evaluate(self.model, 
                          self.test_loader,
@@ -46,8 +49,8 @@ class Client:
         
         if eval_score['Accuracy'][0] > self.args.acc_thresh and cur_prune_rate < self.args.prune_percent:
             prune_fixed_amount(self.model, 
-                               prune_step,
-                               verbose=self.args.prune_verbosity)
+                               self.args.prune_step,
+                               verbose=self.args.prune_verbosity, glob=True)
             self.model = copy_model(global_init_model,
                                     self.args.dataset,
                                     self.args.arch,
@@ -81,9 +84,10 @@ class Client:
         print(f"num_pruned {num_pruned}, num_params {num_params}, cur_prune_rate {cur_prune_rate}, prune_step: {prune_step}")
 
 
-        self.losses[round_index] = np.array(losses)
-        self.accuracies[round_index] = np.array(accuracies)
-        self.prune_rates[round_index] = cur_prune_rate
+        self.losses[round_index:] = np.array(losses)
+        self.accuracies[round_index:] = np.array(accuracies)
+        self.prune_rates[round_index:] = cur_prune_rate
+
 
         return copy_model(self.model, self.args.dataset, self.args.arch)
 

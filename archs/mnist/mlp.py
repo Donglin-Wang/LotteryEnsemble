@@ -1,5 +1,8 @@
 import torch
 import torch.nn as nn
+import numpy as np
+torch.manual_seed(0)
+np.random.seed(0)
 
 class MLP(nn.Module):
     def __init__(self, num_classes=10):

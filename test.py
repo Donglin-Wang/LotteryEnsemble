@@ -81,11 +81,11 @@ def test6_prune_again():
     
     mlp = MLP()
     
-    prune_fixed_amount(mlp, 150000)
+    prune_fixed_amount(mlp, 0.5)
     
     new_mlp = copy_model(mlp, 'mnist', 'mlp')
     
-    prune_fixed_amount(new_mlp, 10000)
+    prune_fixed_amount(new_mlp, 0.5)
     
 
 if __name__ == '__main__':

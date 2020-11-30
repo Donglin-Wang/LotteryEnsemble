@@ -27,9 +27,9 @@ class ClientGenesis(Client):
         num_pruned, num_params = get_prune_summary(self.model)
         cur_prune_rate = num_pruned / num_params
         print(f"num_pruned {num_pruned}, num_params {num_params}, cur_prune_rate {cur_prune_rate}")
-        self.losses[comm_round] = np.array(losses)
-        self.accuracies[comm_round] = np.array(accuracies)
-        self.prune_rates[comm_round] = cur_prune_rate
+        self.losses[comm_round:] = np.array(losses)
+        self.accuracies[comm_round:] = np.array(accuracies)
+        self.prune_rates[comm_round:] = cur_prune_rate
 
 
 class ServerGenesis(Server):
