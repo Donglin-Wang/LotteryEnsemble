@@ -1,6 +1,8 @@
 from report_experiments import MNIST_experiments, CIFAR10_experiments
 from experiment import run_experiments
-
+import torch, numpy as np
+torch.manual_seed(0)
+np.random.seed(0)
 
 if __name__ == '__main__':
     overrides = {

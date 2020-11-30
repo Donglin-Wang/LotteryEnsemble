@@ -5,7 +5,10 @@ from client import Client
 from server import Server
 from genesis import ClientGenesis, ServerGenesis
 from lottery_fl_ds import get_data
-
+from util import create_model
+import torch
+torch.manual_seed(0)
+np.random.seed(0)
 
 def build_args(arch='mlp',
                dataset='mnist',
@@ -73,25 +76,22 @@ def log_experiment(server, clients, exp_name, exp_settings):
 
     os.makedirs(save_path, exist_ok=True)
 
-    mu_client_losses = np.zeros((num_clients, num_rounds, num_local_epoch))
+
+    mu_client_losses = np.zeros((num_clients, num_rounds))
 
     for i, c in enumerate(clients):
-        c_tmp_loss = np.zeros((num_rounds, num_local_epoch))
         for j, loss in enumerate(c.losses):
-            c_tmp_loss[j] = np.array(loss)
-        mu_client_losses[i] = c_tmp_loss
+            mu_client_losses[i][j] = loss[-1]
 
 
     with open(f'{save_path}/mu_client_losses.npy', 'wb') as f:
         np.save(f, mu_client_losses)
 
-    mu_part_client_accs = np.zeros((num_clients, num_rounds, num_local_epoch))
+    mu_part_client_accs = np.zeros((num_clients, num_rounds))
 
     for i, c in enumerate(clients):
-        c_tmp_acc = np.zeros((num_rounds, num_local_epoch))
         for j, acc in enumerate(c.accuracies):
-            c_tmp_acc[j] = np.array(acc)
-        mu_part_client_accs[i] = c_tmp_acc
+            mu_part_client_accs[i][j] = acc[-1]
 
     with open(f'{save_path}/mu_client_accs.npy', 'wb') as f:
         np.save(f, mu_part_client_accs)
@@ -105,12 +105,12 @@ def log_experiment(server, clients, exp_name, exp_settings):
         np.save(f, mu_client_pr_rates)
 
 
-    mu_client_losses_by_r = np.ma.masked_equal(mu_client_losses.mean(axis=2), 0).mean(axis=0).data
+    mu_client_losses_by_r = mu_client_losses.mean(axis=0)
     with open(f'{save_path}/mu_client_losses_by_r.npy', 'wb') as f:
         np.save(f, mu_client_losses_by_r)
 
 
-    mu_client_part_accs_by_r = np.ma.masked_equal(mu_part_client_accs.mean(axis=2), 0).mean(axis=0).data
+    mu_client_part_accs_by_r = mu_part_client_accs.mean(axis=0)
     with open(f'{save_path}/mu_client_part_accs_by_r.npy', 'wb') as f:
         np.save(f, mu_client_part_accs_by_r)
 
@@ -121,6 +121,13 @@ def log_experiment(server, clients, exp_name, exp_settings):
     mu_client_accs_by_r = server.client_accuracies.mean(axis=0)
     with open(f'{save_path}/mu_client_accs_by_r.npy', 'wb') as f:
         np.save(f, mu_client_accs_by_r)
+
+    with open(f'{save_path}/client_accs.npy', 'wb') as f:
+        np.save(f, server.client_accuracies)
+
+    with open(f'{save_path}/selected_client_tally.npy', 'wb') as f:
+        np.save(f, server.selected_client_tally)
+
 
     with open(f'{save_path}/server_accs.npy', 'wb') as f:
         server_accs = np.array(server.accuracies)
@@ -164,12 +171,12 @@ def log_experiment(server, clients, exp_name, exp_settings):
 def run_experiment(args, overrides):
     for  k, v in overrides.items():
         setattr(args, k, v)
-
+    args.log_folder = overrides['log_folder'] + '/' + overrides['exp_name']
     (client_loaders, test_loader), global_test_loader =\
         get_data(args.num_clients,
                  args.dataset, mode=args.data_split, batch_size=args.batch_size,
                  n_samples = args.n_samples, n_class = args.n_class, rate_unbalance=args.rate_unbalance)
-
+        
     clients = []
     for i in range(args.num_clients):
         clients.append(args.client(args, client_loaders[i], test_loader[i], client_id=i))
@@ -184,6 +191,7 @@ def run_experiments(experiments, overrides):
     run_times = {}
     start = time.time()
     for exp_name, exp_settings in experiments.items():
+        overrides['exp_name'] = exp_name
         run_start = time.time()
         server, clients = run_experiment(exp_settings, overrides)
         log_experiment(server, clients, exp_name, exp_settings)

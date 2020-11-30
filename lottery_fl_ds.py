@@ -6,6 +6,8 @@ import torch
 import torchvision as tv
 import torchvision.transforms as tf
 from sklearn.utils import shuffle
+torch.manual_seed(0)
+np.random.seed(0)
 
 class DatasetSplit(Dataset):
     """An abstract Dataset class wrapped around Pytorch Dataset class.
@@ -52,6 +54,10 @@ def get_dataset_mnist_extr_noniid(num_users, n_class, nsamples, rate_unbalance, 
                                              batch_size=batch_size, shuffle=True))
 
     for  (_,c_t_idx) in user_groups_test.items():
+        if len(c_t_idx) == 1000:
+            c_t_idx = np.concatenate((c_t_idx, c_t_idx))
+        if len(c_t_idx) > 2000:
+            c_t_idx = c_t_idx[:2001]
         user_test_loaders.append(DataLoader(DatasetSplit(test_dataset, c_t_idx),
                                             batch_size=batch_size, shuffle=True))
 

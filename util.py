@@ -2,15 +2,18 @@ import os
 import sys
 import errno
 import pickle
-
+import math
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from sklearn import metrics as skmetrics
-
+import numpy as np
 from tqdm import tqdm
 from tabulate import tabulate
 import torch.nn.utils.prune as prune
+
+torch.manual_seed(0)
+np.random.seed(0)
 
 def fed_avg(models, dataset, arch, data_nums):
     new_model = create_model(dataset, arch) #copy_model(server_model, dataset, arch, source_buff=dict(server_model.named_buffers()))
@@ -35,12 +38,15 @@ def fed_avg(models, dataset, arch, data_nums):
         param.data.copy_(avg)
     return new_model
 
-def lottery_fl_avg(models, dataset, arch, data_nums):
+def lottery_fl_v2(server_model, models, dataset, arch, data_nums):
     new_model = create_model(dataset, arch) #copy_model(server_model, dataset, arch, source_buff=dict(server_model.named_buffers()))
     num_models = len(models)
     num_data_total = sum(data_nums)
     data_nums = data_nums / num_data_total
     with torch.no_grad():
+        # Get server weights 
+        server_weights = dict(server_model.named_parameters())
+
         # Getting all the weights and masks from original models
         weights, masks = [], []
         for i in range(num_models):
@@ -52,17 +58,45 @@ def lottery_fl_avg(models, dataset, arch, data_nums):
         # Averaging weights
         for name, param in new_model.named_parameters():
             for i in range(num_models):
-                parameters_to_prune, num_global_weights = get_prune_params(models[i])
+                #parameters_to_prune, num_global_weights, _ = get_prune_params(models[i])
 
                 model_masks = masks[i]
 
                 try:
                     layer_mask = model_masks[name.strip("_orig") + "_mask"]
                     weights[i][name] *= layer_mask
+                    weights[i][name] = np.where(weights[i][name] != 0, weights[i][name], server_weights[name])
                 except Exception as e:
+                    #print("exceptions")
+                    #print(e)
                     pass
+                weighted_param = weights[i][name]
+                #weighted_param = torch.mul(weights[i][name], data_nums[i])
+                param.data.copy_(param.data + weighted_param)
+            avg = torch.div(param.data, num_models)
+            param.data.copy_(avg)
+    return new_model
 
-                weighted_param = torch.mul(weights[i][name], data_nums[i])
+def lottery_fl_v3(server_model, models, dataset, arch, data_nums):
+    new_model = create_model(dataset, arch) #copy_model(server_model, dataset, arch, source_buff=dict(server_model.named_buffers()))
+    num_models = len(models)
+    num_data_total = sum(data_nums)
+    with torch.no_grad():
+        # Getting all the weights and masks from original models
+        weights, masks = [], []
+        for i in range(num_models):
+            new_c_model = copy_model(models[i], dataset, arch)
+            parameters_to_prune, _, _ = get_prune_params(new_c_model)
+            for m, n in parameters_to_prune:
+                prune.remove(m, n)
+            weights.append(dict(new_c_model.named_parameters()))
+
+        for name, param in new_model.named_parameters():
+            param.data.copy_(torch.zeros_like(param.data))
+        # Averaging weights
+        for name, param in new_model.named_parameters():
+            for i in range(num_models):
+                weighted_param = weights[i][name.strip("_orig")] #torch.mul(weights[i][name], data_nums[i])
                 param.data.copy_(param.data + weighted_param)
             avg = torch.div(param.data, num_models)
             param.data.copy_(avg)
@@ -118,7 +152,7 @@ def create_model(dataset_name, model_type):
         # This pruning call is made so that the model is set up for accepting
         # weights from another pruned model. If this is not done, the weights
         # will be incompatible
-        prune_fixed_amount(new_model, 0, verbose=False)
+        prune_fixed_amount(new_model, 0.0, verbose=False)
         return new_model
 
     elif model_type == 'cnn':
@@ -234,12 +268,17 @@ def evaluate(model, data_loader, verbose=True):
     torch.enable_grad()
     return score
 
-def prune_fixed_amount(model, amount, verbose=True):
-    parameters_to_prune, num_global_weights = get_prune_params(model)
-    prune.global_unstructured(
-        parameters_to_prune,
-        pruning_method=prune.L1Unstructured,
-        amount=amount)
+def prune_fixed_amount(model, amount, verbose=True, glob=True):
+    parameters_to_prune, num_global_weights, layers_w_count = get_prune_params(model)
+
+    if glob:
+        prune.global_unstructured(
+            parameters_to_prune,
+            pruning_method=prune.L1Unstructured,
+            amount = math.floor(amount * num_global_weights))
+    else:
+        for i, (m, n) in enumerate(parameters_to_prune):
+            prune.l1_unstructured(m, name=n, amount = math.floor(amount * layers_w_count[i][1]))
 
     num_global_zeros, num_layer_zeros, num_layer_weights = 0, 0, 0
     global_prune_percent, layer_prune_percent = 0, 0
@@ -268,7 +307,7 @@ def prune_fixed_amount(model, amount, verbose=True):
 
 def get_prune_summary(model):
     num_global_zeros = 0
-    parameters_to_prune, num_global_weights = get_prune_params(model)
+    parameters_to_prune, num_global_weights, _ = get_prune_params(model)
 
     masks = dict(model.named_buffers())
 
@@ -285,6 +324,7 @@ def get_prune_summary(model):
         
 def get_prune_params(model):
     layers = []
+    layers_weight_count = []
     
     num_global_weights = 0
     
@@ -313,10 +353,14 @@ def get_prune_params(model):
                     # Might remove the param.requires_grad condition in the future
                     
                     layers.append((layer, field_name))
-                
-                    num_global_weights += torch.numel(param)
                     
-    return layers, num_global_weights
+                    layer_weight_count = torch.numel(param)
+                    
+                    layers_weight_count.append((layer, layer_weight_count))
+                
+                    num_global_weights += layer_weight_count
+                    
+    return layers, num_global_weights, layers_weight_count
         
     
 
@@ -352,16 +396,15 @@ def calculate_metrics(score, ytrue, yraw, ypred):
     return score
         
 def log_obj(path, obj):
-    pass
-    # if not os.path.exists(os.path.dirname(path)):
-    #     try:
-    #         os.makedirs(os.path.dirname(path))
-    #     except OSError as exc: # Guard against race condition
-    #         if exc.errno != errno.EEXIST:
-    #             raise
-    #
-    # with open(path, 'wb') as file:
-    #     if isinstance(obj, nn.Module):
-    #         torch.save(obj, file)
-    #     else:
-    #         pickle.dump(obj, file)
+    if not os.path.exists(os.path.dirname(path)):
+        try:
+            os.makedirs(os.path.dirname(path))
+        except OSError as exc: # Guard against race condition
+            if exc.errno != errno.EEXIST:
+                raise
+    
+    with open(path, 'wb') as file:
+        if isinstance(obj, nn.Module):
+            torch.save(obj, file)
+        else:
+            pickle.dump(obj, file)
