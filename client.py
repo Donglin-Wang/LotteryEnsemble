@@ -25,23 +25,30 @@ class Client:
         assert self.model, "Something went wrong and the model cannot be initialized"
 
 
-    def client_update(self, global_model, global_init_model, round_index):
+    def client_update(self, global_model, global_init_model, round_index, last_client_acc):
         self.elapsed_comm_rounds += 1
         print(f'***** Client #{self.client_id} *****', flush=True)
-        self.model = copy_model(global_model,
+        potential_model = copy_model(global_model,
                                 self.args.dataset,
                                 self.args.arch,
                                 dict(self.model.named_buffers()))
         
-        num_pruned, num_params = get_prune_summary(self.model)
+        num_pruned, num_params = get_prune_summary(potential_model)
         cur_prune_rate = num_pruned / num_params
         #prune_step = math.floor(num_params * self.args.prune_step)
         
-        eval_score = evaluate(self.model, 
+        eval_score = evaluate(potential_model,
                          self.test_loader,
                          verbose=self.args.test_verbosity)
+
+        print(f"previous client acc: {last_client_acc} current client acc: {eval_score['Accuracy'][-1]}")
+        eval_score = eval_score['Accuracy'][-1]
+        if eval_score > last_client_acc:
+            self.model = potential_model
+        else:
+            eval_score = last_client_acc
         
-        if eval_score['Accuracy'][0] > self.args.acc_thresh and cur_prune_rate < self.args.prune_percent:
+        if eval_score > self.args.acc_thresh and cur_prune_rate < self.args.prune_percent:
             prune_fixed_amount(self.model, 
                                self.args.prune_step,
                                verbose=self.args.prune_verbosity, glob=True)

@@ -57,10 +57,15 @@ class Server():
             for j in range(len(update_or_not)):
 
                 if update_or_not[j]:
-                    if self.args.avg_logic == "standalone":
-                        self.clients[j].client_update(self.clients[j].model, self.global_init_model, i)
+                    if i == 0:
+                        prev_model_acc = 0
                     else:
-                        self.clients[j].client_update(self.global_models, self.global_init_model, i)
+                        prev_model_acc = self.client_accuracies[j][i - 1]
+
+                    if self.args.avg_logic == "standalone":
+                        self.clients[j].client_update(self.clients[j].model, self.global_init_model, i, prev_model_acc)
+                    else:
+                        self.clients[j].client_update(self.global_models, self.global_init_model, i, prev_model_acc)
                 else:
                     pass
                     # copy_model(self.clients[j].model, self.args.dataset, self.args.arch)

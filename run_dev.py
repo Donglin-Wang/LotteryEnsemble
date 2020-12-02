@@ -8,7 +8,7 @@ np.random.seed(0)
 
 if __name__ == '__main__':
     overrides = {
-        'log_folder': './weights',
+        'log_folder': './drive/MyDrive/weights',
         'running_on_cloud': False
     }
 
@@ -155,7 +155,7 @@ if __name__ == '__main__':
                        rate_unbalance=rate_unbalance,
                        n_samples=n_samples,
                        n_class=n_class),
-        'lottery_fl_10_c_per_round_0.9_thresh':  # this key determines the output folder name under log_folder
+        'lottery_fl_10_c_per_round_0.9_thresh_p_fixed':  # this key determines the output folder name under log_folder
             build_args(arch='mlp',
                        dataset='mnist',
                        data_split=data_split,
@@ -193,7 +193,7 @@ if __name__ == '__main__':
                        rate_unbalance=rate_unbalance,
                        n_samples=n_samples,
                        n_class=n_class),
-        'lottery_fl_5_c_per_round_0.5_thresh':  # this key determines the output folder name under log_folder
+        'lottery_fl_5_c_per_round_0.5_thresh_p_fixed':  # this key determines the output folder name under log_folder
             build_args(arch='mlp',
                        dataset='mnist',
                        data_split=data_split,
@@ -289,6 +289,63 @@ if __name__ == '__main__':
                        n_samples=n_samples,
                        n_class=n_class),
         'lottery_fl_20_c_per_round_0.3_thresh':  # this key determines the output folder name under log_folder
+            build_args(arch='mlp',
+                       dataset='mnist',
+                       data_split=data_split,
+                       client=Client,
+                       server=Server,
+                       avg_logic=None,
+                       num_clients=num_clients,
+                       comm_rounds=num_rounds,
+                       frac=0.05,
+                       prune_step=0.2,
+                       prune_percent=0.3,
+                       acc_thresh=0.5,
+                       client_epoch=num_local_epoch,
+                       batch_size=batch_size,
+                       lr=0.001,
+                       rate_unbalance=rate_unbalance,
+                       n_samples=n_samples,
+                       n_class=n_class),
+        'lottery_fl_20_c_per_round_0.1_thresh_p_fixed':
+            build_args(arch='mlp',
+                       dataset='mnist',
+                       data_split=data_split,
+                       client=Client,
+                       server=Server,
+                       avg_logic=None,
+                       num_clients=num_clients,
+                       comm_rounds=num_rounds,
+                       frac=0.05,
+                       prune_step=0.2,
+                       prune_percent=0.1,
+                       acc_thresh=0.5,
+                       client_epoch=num_local_epoch,
+                       batch_size=batch_size,
+                       lr=0.001,
+                       rate_unbalance=rate_unbalance,
+                       n_samples=n_samples,
+                       n_class=n_class),
+        'lottery_fl_10_c_per_round_0.3_thresh_p_fixed':
+            build_args(arch='mlp',
+                       dataset='mnist',
+                       data_split=data_split,
+                       client=Client,
+                       server=Server,
+                       avg_logic=None,
+                       num_clients=num_clients,
+                       comm_rounds=num_rounds,
+                       frac=0.025,
+                       prune_step=0.2,
+                       prune_percent=0.3,
+                       acc_thresh=0.5,
+                       client_epoch=num_local_epoch,
+                       batch_size=batch_size,
+                       lr=0.001,
+                       rate_unbalance=rate_unbalance,
+                       n_samples=n_samples,
+                       n_class=n_class),
+        'lottery_fl_20_c_per_round_0.3_thresh_p_fixed':
             build_args(arch='mlp',
                        dataset='mnist',
                        data_split=data_split,
@@ -463,6 +520,25 @@ if __name__ == '__main__':
                        n_samples=n_samples,
                        n_class=n_class),
         'lottery_fl_v2_20_c_per_round_0.3_thresh':  # this key determines the output folder name under log_folder
+            build_args(arch='mlp',
+                       dataset='mnist',
+                       data_split=data_split,
+                       client=Client,
+                       server=Server,
+                       avg_logic='lottery_fl_v2',
+                       num_clients=num_clients,
+                       comm_rounds=num_rounds,
+                       frac=0.05,
+                       prune_step=0.2,
+                       prune_percent=0.3,
+                       acc_thresh=0.5,
+                       client_epoch=num_local_epoch,
+                       batch_size=batch_size,
+                       lr=0.001,
+                       rate_unbalance=rate_unbalance,
+                       n_samples=n_samples,
+                       n_class=n_class),
+        'lottery_fl_v2_20_c_per_round_0.3_thresh_p_fixed':
             build_args(arch='mlp',
                        dataset='mnist',
                        data_split=data_split,
@@ -779,5 +855,5 @@ if __name__ == '__main__':
     }
 
     # To run 1 or more set selection
-    selection = ['lottery_fl_5_c_per_round_0.9_thresh',]
+    selection = ['lottery_fl_v2_20_c_per_round_0.3_thresh_p_fixed',]
     run_experiments({k: experiments[k] for k in selection}, overrides)
