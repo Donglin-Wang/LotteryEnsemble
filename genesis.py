@@ -9,6 +9,7 @@ class ClientGenesis(Client):
     def __init__(self, args, train_loader, test_loader, client_id):
         super().__init__(args, train_loader, test_loader, client_id)
 
+
     def client_update(self, global_model, global_init_model, comm_round):
         self.elapsed_comm_rounds += 1
         print(f'***** Client #{self.client_id} *****', flush=True)
@@ -41,21 +42,25 @@ class ServerGenesis(Server):
         self.global_models.train()
 
         for comm_round in range(self.comm_rounds):
-            print('-------------------------------------', flush=True)
-            print(f'Communication Round #{comm_round}', flush=True)
-            print('-------------------------------------', flush=True)
             selected_clients = np.random.choice(self.num_clients,
                                                 max(int(self.frac * self.num_clients), 1),
                                                 replace=False)
+            print('-------------------------------------', flush=True)
+            print(f'Communication Round #{comm_round} Clients={selected_clients}', flush=True)
+            print('-------------------------------------', flush=True)
             for c in [self.clients[i] for i in selected_clients]:
                 c.client_update(self.global_models, self.global_init_model, comm_round)
 
-            self.global_models = fed_avg([c.model for c in self.clients],
-                                         self.args.dataset, self.args.arch, self.client_data_num)
+            new_model = fed_avg([c.model for c in self.clients],
+                                self.args.dataset, self.args.arch, self.client_data_num)
+            # fed_avg clobbers the mask, so we need to copy it back into the global model
+            global_buffers = dict(self.global_models.named_buffers())
+            for name, buffer in new_model.named_buffers():
+                buffer.data.copy_(global_buffers[name])
+            self.global_models = new_model
 
-            # gather server accuracies
-            eval_score = evaluate(self.global_models, self.test_loader, verbose=self.args.test_verbosity)
-            self.accuracies[comm_round] = eval_score['Accuracy'][-1]
+            # server accuracies are not useful for Genesis
+            self.accuracies[comm_round] = 0
             # gather client accuracies
             for k, m in enumerate(self.clients):
                 if k in selected_clients:
@@ -63,6 +68,9 @@ class ServerGenesis(Server):
                 elif comm_round > 0:
                     self.client_accuracies[k][comm_round] = self.client_accuracies[k][comm_round - 1]
 
+
+            print(f"End of round accuracy: all={self.client_accuracies[:, comm_round].mean()}, "
+                  f"participating={self.client_accuracies[selected_clients, comm_round].mean()}")
 
             # prune global model if appropriate
             num_pruned, num_params = get_prune_summary(self.global_models)
