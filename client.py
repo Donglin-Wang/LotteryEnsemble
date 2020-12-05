@@ -84,3 +84,18 @@ class Client:
                               verbose=self.args.test_verbosity)
         return eval_score['Accuracy'][-1]
 
+    def get_mask(self):
+        result = np.array(())
+        for k, v in self.model.named_buffers():
+            if 'weight_mask' in k:
+                result = np.append(result, [v.data.numpy().reshape(-1)])
+        return np.array(result)
+
+    def get_class_counts(self):
+        class_counts = {}
+        for batch in self.train_loader:
+            for label in batch[1]:
+                if label.item() not in class_counts:
+                    class_counts[label.item()] = 0
+                class_counts[label.item()] += 1
+        return class_counts
