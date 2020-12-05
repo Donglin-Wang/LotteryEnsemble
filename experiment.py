@@ -198,6 +198,7 @@ def log_experiment(server, clients, exp_name, exp_settings):
     axs.set_title("Summary of pairwise client mask overlap")
     axs.set_xlabel("Class overlap")
     axs.set_ylabel("Mean mask overlap (# weights)")
+    axs.set_xticks([0, 1, 2])
     fig.savefig(f"{save_path}/mask_overlap_by_class_overlap.png")
 
 def run_experiment(args, overrides):
