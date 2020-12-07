@@ -13,8 +13,11 @@ class Client:
                  test_loader,
                  client_id=None):
         self.args = args
+        print("Creating model for client "+ str(client_id))
         self.model = create_model(self.args.dataset, self.args.arch)
+        print("Copying model for client "+ str(client_id))
         self.init_model = copy_model(self.model, self.args.dataset, self.args.arch)
+        print("Done Copying model for client "+ str(client_id))
         self.test_loader = test_loader
         self.train_loader = train_loader
         self.client_id = client_id

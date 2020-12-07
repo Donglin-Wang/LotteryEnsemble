@@ -4,7 +4,7 @@ import torch
 import torchvision as tv
 import torchvision.transforms as tf
 from sklearn.utils import shuffle
-
+from matplotlib import pyplot as plt
 # Given each user euqal number of samples if possible. If not, the last user 
 # gets whatever is left after other users had their shares
 
@@ -25,21 +25,23 @@ def iid_split(num_clients,
     
     for idx in sample_train_idx:
         user_train_loaders.append(torch.utils.data.DataLoader(train_data, 
-                                            sampler=idx,
+                                            sampler=torch.utils.data.SubsetRandomSampler(idx),
                                             batch_size=batch_size))
     for idx in sample_test_idx:
         user_test_loaders.append(torch.utils.data.DataLoader(test_data,
-                                                              sampler=idx,
+                                                              sampler=torch.utils.data.SubsetRandomSampler(idx),
                                                               batch_size=batch_size))
     
     return user_train_loaders, user_test_loaders
 
 # Sort the labels before splitting the data to each user
 
-def non_iid_split(num_clients,
+
+
+def non_iid_split(num_clients, num_train_samples_perclass,
                   train_data, 
-                  batch_size, test_data):
-    
+                  batch_size, test_data, num_validation_samples_perclass=10, num_test_samples_perclass=890):
+
     data_size = train_data.data.shape[0]
 
     #Test data size
@@ -59,59 +61,100 @@ def non_iid_split(num_clients,
     label_idx_pairs_test = sorted(label_idx_pairs_test, key=lambda pair : pair[1])
     sorted_idx_test = [idx for idx, label in label_idx_pairs_test]
 
-    #Random int for setting seed to make the Train data and Test data have the same labels
-    rand_num = random.randint(1, 100000)
     
-    # Split the class labels into 2 * num_clients chunks. If the data cannot
-    # be equally divided, the last chunk will have less data than the rest.
-    sample_bin_idx = np.array_split(sorted_idx, num_clients * 2)
-    np.random.seed(rand_num)
-    sample_bin_idx = np.random.permutation(sample_bin_idx)
-    num_bins = len(sample_bin_idx)
+    train_digit_list = [[] for i in range(10)]
+    test_digit_list = [[] for i in range(10)]
 
-    #For test data
-    sample_bin_idx_test = np.array_split(sorted_idx_test, num_clients * 2)
-    np.random.seed(rand_num)
-    sample_bin_idx_test = np.random.permutation(sample_bin_idx_test)           
+    for i in range(len(sorted_idx)):
+        train_digit_list[train_data.targets[i]].append(i)
+
+    for i in range(len(sorted_idx_test)):
+        test_digit_list[test_data.targets[i]].append(i)
+
+    # # Split the class labels into 2 * num_clients chunks. If the data cannot
+    # # be equally divided, the last chunk will have less data than the rest.
+    # sample_bin_idx = np.array_split(sorted_idx, num_clients * 2)
+    # np.random.seed(1)
+    # sample_bin_idx = np.random.permutation(sample_bin_idx)
+    # num_bins = len(sample_bin_idx)
+
+    # #For test data
+    # sample_bin_idx_test = np.array_split(sorted_idx_test, num_clients * 2)
+    # np.random.seed(1)
+    # sample_bin_idx_test = np.random.permutation(sample_bin_idx_test)           
 
     #Training data loaders
-    user_loaders = []
+    train_loaders = []
+    #Val data loader
+    val_loaders = []
     #Test data loaders
     test_loaders = []
-
     
-    for i in range(0, num_bins, 2):
-        
-        client_data_idx = sample_bin_idx[i]
+    for i in range(0, num_clients):
 
-        client_test_data_idx = sample_bin_idx_test[i]
+        digits = np.random.choice(range(10), 2, replace = False)
+        digit1, digit2 = digits[0], digits[1]
+
+        cur_train_idx = []
+        cur_val_idx = []
+        cur_test_idx = []
+
+        cur_train_idx = np.random.choice(train_digit_list[digit1], num_train_samples_perclass + num_validation_samples_perclass, replace =False)
+        cur_test_idx = np.random.choice(test_digit_list[digit1], num_test_samples_perclass, replace = False)
+
+        cur_train_idx = np.append(cur_train_idx, np.random.choice(train_digit_list[digit2], num_train_samples_perclass + num_validation_samples_perclass, replace =False))
+        cur_train_idx = shuffle(cur_train_idx)
+
+        cur_test_idx = np.append(cur_test_idx, np.random.choice(test_digit_list[digit2], num_test_samples_perclass, replace = False))
+        cur_test_idx = shuffle(cur_test_idx)
+
+        cur_val_idx = cur_train_idx[:2*num_validation_samples_perclass]
+        cur_train_idx = cur_train_idx[2*num_validation_samples_perclass:]
+
+
+        # client_data_idx = sample_bin_idx[i]
+
+        # client_test_data_idx = sample_bin_idx_test[i]
+
+        # if i + 1 < num_bins:
+        #     client_data_idx = np.append(client_data_idx, sample_bin_idx[i+1])
+        #     client_test_data_idx = np.append(client_test_data_idx, sample_bin_idx_test[i+1])
         
-        if i + 1 < num_bins:
-            client_data_idx = np.append(client_data_idx, sample_bin_idx[i+1])
-            client_test_data_idx = np.append(client_test_data_idx, sample_bin_idx_test[i+1])
-            
-        client_data_idx = shuffle(client_data_idx)
-        client_test_data_idx = shuffle(client_test_data_idx)
-            
+       
         #Trainning data
-        randomize_train_Sample = np.random.permutation(client_data_idx)
-        cur_sampler = torch.utils.data.BatchSampler(randomize_train_Sample, 
+        cur_sampler = torch.utils.data.BatchSampler(torch.utils.data.SubsetRandomSampler(cur_train_idx), 
                                                     batch_size, 
                                                     drop_last=False)
+        
+
         cur_loader = torch.utils.data.DataLoader(train_data,
                                                  batch_sampler=cur_sampler)
-        user_loaders.append(cur_loader)
+
+        train_loaders.append(cur_loader)
+
+        #Val data
+
+        cur_sampler_val = torch.utils.data.BatchSampler(torch.utils.data.SubsetRandomSampler(cur_val_idx), 
+                                                    batch_size, 
+                                                    drop_last=False)
+        
+
+        cur_loader_val = torch.utils.data.DataLoader(train_data,
+                                                 batch_sampler=cur_sampler)
+
+        val_loaders.append(cur_loader_val)
 
         #Test data
-        randomize_test_Sample = np.random.permutation(client_test_data_idx)
-        cur_sampler_test = torch.utils.data.BatchSampler(randomize_test_Sample, 
+        cur_sampler_test = torch.utils.data.BatchSampler(torch.utils.data.SubsetRandomSampler(cur_test_idx), 
                                                     batch_size, 
                                                     drop_last=False)
         cur_loader_test = torch.utils.data.DataLoader(test_data,
                                                  batch_sampler=cur_sampler_test)
+
         test_loaders.append(cur_loader_test)
 
-    return user_loaders, test_loaders
+    return train_loaders, val_loaders, test_loaders
+
 
 def non_iid_unequal_split(num_clients, 
                           train_data,
@@ -122,19 +165,25 @@ def non_iid_unequal_split(num_clients,
     
     return
     
+
+
 def get_data(num_clients, dataset_name,
-             mode="iid",
+             n_class, num_train_samples_perclass, mode="iid",
              batch_size=4,
              min_shard=1,
-             max_shard=30):
+             max_shard=30, num_validation_samples_perclass=10, num_test_samples_perclass=890,rate_unbalance=1.0):
     
     train_data, test_data = [], []
     
-    transform = tf.Compose(
-        [tf.ToTensor(), 
-          tf.Normalize((0.5), (0.5))
-         ]
-    )
+    transform1 = tf.Compose([
+        tf.ToTensor(),
+        tf.Normalize((0.1307,), (0.3081,))])
+
+    transform2 = tf.Compose([
+                tf.ToTensor(),
+                tf.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
+            ])
+
     
      # Downloading data based on inputs. If the data is already downloaded,
      # it won't be download twice
@@ -143,20 +192,20 @@ def get_data(num_clients, dataset_name,
         train_data = tv.datasets.CIFAR10(root="./data", 
                                  train=True, 
                                  download=True, 
-                                 transform=transform)
+                                 transform=transform2)
         test_data = tv.datasets.CIFAR10(root="./data",
                                 train=False,
                                 download=True,
-                                transform=transform)
+                                transform=transform2)
     elif dataset_name == "mnist":
         train_data = tv.datasets.MNIST(root="./data", 
                                  train=True, 
                                  download=True, 
-                                 transform=transform)
+                                 transform=transform1)
         test_data = tv.datasets.MNIST(root="./data",
                                 train=False,
                                 download=True,
-                                transform=transform)
+                                transform=transform1)
 
     elif dataset_name == "cifar100":
         train_data = tv.datasets.CIFAR100(root="./data", 
@@ -181,9 +230,9 @@ def get_data(num_clients, dataset_name,
                          batch_size, test_data), global_test_loader
     
     elif mode == "non-iid":
-        return non_iid_split(num_clients, 
-                             train_data,  
-                             batch_size, test_data), global_test_loader
+        return non_iid_split(num_clients = num_clients, 
+                            num_train_samples_perclass= num_train_samples_perclass, num_validation_samples_perclass = num_validation_samples_perclass, num_test_samples_perclass= num_test_samples_perclass, train_data =train_data,
+                            batch_size = batch_size, test_data = test_data), global_test_loader
     
     elif mode == "non-iid-unequal":
         return non_iid_unequal_split(num_clients, 
@@ -198,103 +247,49 @@ def get_data(num_clients, dataset_name,
 
     return 0
 
-#Adding in Jeremy's non-iid dataset implementation for personalized federated learning 
-def get_dataset_mnist_extr_noniid(num_users, n_class, nsamples, rate_unbalance):
-    data_dir = '../data/mnist/'
-    apply_transform = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize((0.1307,), (0.3081,))])
-    train_dataset = datasets.MNIST(data_dir, train=True, download=True,
-                                   transform=apply_transform)
-
-    test_dataset = datasets.MNIST(data_dir, train=False, download=True,
-                                      transform=apply_transform)
-
-    # Chose euqal splits for every user
-    user_groups_train, user_groups_test = mnist_extr_noniid(train_dataset, test_dataset, num_users, n_class, nsamples, rate_unbalance)
-    return train_dataset, test_dataset, user_groups_train, user_groups_test
-
-def mnist_extr_noniid(train_dataset, test_dataset, num_users, n_class, num_samples, rate_unbalance):
-    num_shards_train, num_imgs_train = int(60000/num_samples), num_samples
-    num_classes = 10
-    num_imgs_perc_test, num_imgs_test_total = 1000, 10000
-    assert(n_class * num_users <= num_shards_train)
-    assert(n_class <= num_classes)
-    idx_class = [i for i in range(num_classes)]
-    idx_shard = [i for i in range(num_shards_train)]
-    dict_users_train = {i: np.array([]) for i in range(num_users)}
-    dict_users_test = {i: np.array([]) for i in range(num_users)}
-    idxs = np.arange(num_shards_train*num_imgs_train)
-    # labels = dataset.train_labels.numpy()
-    labels = np.array(train_dataset.targets)
-    idxs_test = np.arange(num_imgs_test_total)
-    labels_test = np.array(test_dataset.targets)
-    #labels_test_raw = np.array(test_dataset.targets)
-
-    # sort labels
-    idxs_labels = np.vstack((idxs, labels))
-    idxs_labels = idxs_labels[:, idxs_labels[1, :].argsort()]
-    idxs = idxs_labels[0, :]
-    labels = idxs_labels[1, :]
-
-    idxs_labels_test = np.vstack((idxs_test, labels_test))
-    idxs_labels_test = idxs_labels_test[:, idxs_labels_test[1, :].argsort()]
-    idxs_test = idxs_labels_test[0, :]
-    #print(idxs_labels_test[1, :])
-
-    # divide and assign
-    for i in range(num_users):
-        user_labels = np.array([])
-        rand_set = set(np.random.choice(idx_shard, n_class, replace=False))
-        idx_shard = list(set(idx_shard) - rand_set)
-        unbalance_flag = 0
-        for rand in rand_set:
-            if unbalance_flag == 0:
-                dict_users_train[i] = np.concatenate(
-                    (dict_users_train[i], idxs[rand*num_imgs_train:(rand+1)*num_imgs_train]), axis=0)
-                user_labels = np.concatenate((user_labels, labels[rand*num_imgs_train:(rand+1)*num_imgs_train]), axis=0)
-            else:
-                dict_users_train[i] = np.concatenate(
-                    (dict_users_train[i], idxs[rand*num_imgs_train:int((rand+rate_unbalance)*num_imgs_train)]), axis=0)
-                user_labels = np.concatenate((user_labels, labels[rand*num_imgs_train:int((rand+rate_unbalance)*num_imgs_train)]), axis=0)
-            unbalance_flag = 1
-        user_labels_set = set(user_labels)
-        #print(user_labels_set)
-        #print(user_labels)
-        for label in user_labels_set:
-            dict_users_test[i] = np.concatenate((dict_users_test[i], idxs_test[int(label)*num_imgs_perc_test:int(label+1)*num_imgs_perc_test]), axis=0)
-        #print(set(labels_test_raw[dict_users_test[i].astype(int)]))
-    return dict_users_train, dict_users_test
-
-
-
 if __name__ == "__main__":
     
     #print("Load MNIST 10")
     #user_loaders, test_loader = get_data(10, "mnist")
     #assert len(user_loaders) == 10
-    
-    print("Load cifar10 10 non-iid")
-    (users_data, test_loader), global_test_loader = get_data(400, "cifar10", mode="non-iid", batch_size=32)
-    print(len(users_data))
-    print(len(test_loader))
-    print(len(global_test_loader))
+
+    # l = [[1,2,3,4,5], [2,2], [2,3,4]]
+    # print(np.random.permutation(l))
+
+    print("Load CIAFR10 non-iid")
+    users_data, global_test_loader = get_data(num_clients = 400, dataset_name= "cifar10", n_class = 2, num_train_samples_perclass = 20, mode="non-iid", batch_size=10)
+    train_loaders, val_loaders, test_loaders  = users_data
 
     count = 0
     print("training data")
-    for data, label in users_data[0]:
+    means = torch.Tensor([0.4914, 0.4822, 0.4465])
+    stds = torch.Tensor([0.2023, 0.1994, 0.2010])
+    for data, label in train_loaders[0]:
+        if (count==0):
+            print(data[0])
+            plt.imshow(data[0].permute(1,2,0)*stds + means, interpolation='bicubic')
+            plt.show()
         print(label)
         count += 1
     print(count)
 
     count = 0
-    print("testing data")
-    for data, label in test_loader[0]:
+
+    print("validation data")
+    for data, label in val_loaders[0]:
         print(label)
         count += 1
     print(count)
 
-    print(len(users_data[0]))
-    print(len(global_test_loader))
+    count = 0
+
+    print("testing data")
+    for data, label in test_loaders[0]:
+        print(label)
+        count += 1
+    print(count)
+
+
+
 
     

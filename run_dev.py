@@ -871,7 +871,26 @@ if __name__ == '__main__':
                        rate_unbalance=rate_unbalance,
                        n_samples=n_samples,
                        n_class=n_class),
-
+            # This is to test the cifar data splitter..
+        'fed_avg_5_c_per_round_cifar':  # this key determines the output folder name under log_folder
+            build_args(arch='cnn',
+                       dataset='cifar10',
+                       data_split=data_split,
+                       client=Client,
+                       server=Server,
+                       avg_logic=None,
+                       num_clients=num_clients,
+                       comm_rounds=num_rounds,
+                       frac=0.0125,
+                       prune_step=0.0,
+                       prune_percent=2,
+                       acc_thresh=2,
+                       client_epoch=num_local_epoch,
+                       batch_size=batch_size,
+                       lr=0.001,
+                       rate_unbalance=rate_unbalance,
+                       n_samples=n_samples,
+                       n_class=n_class),
         # !!! NOTE: This experiment still uses the old style specification. Adjust to resemble an earlier example.
         # !!!
         # Ashwin RJ non-iid
@@ -941,5 +960,5 @@ if __name__ == '__main__':
     }
 
     # To run 1 or more set selection
-    selection = ['lottery_fl_5_c_per_round_0.9_thresh',]
+    selection = ['fed_avg_5_c_per_round_cifar',]
     run_experiments({k: experiments[k] for k in selection}, overrides)
