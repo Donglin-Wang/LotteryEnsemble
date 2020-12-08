@@ -27,6 +27,16 @@ class Client:
         self.prune_rates = np.zeros(args.comm_rounds)
         assert self.model, "Something went wrong and the model cannot be initialized"
 
+        # This is a sanity check that we're getting proper data. Once we are confident about this, we can delete this.
+        train_classes =  self.get_class_counts('train')
+        test_classes  =  self.get_class_counts('test')
+        assert len(train_classes.keys()) == 2,\
+            f'Client {self.client_id} should have 2 classes in train set but has {len(train_classes.keys())}.'
+        assert len(test_classes.keys()) == 2,\
+            f'Client {self.client_id} should have 2 classes in test set but has {len(test.keys())}.'
+        assert set(train_classes.keys()) == set(test_classes.keys()),\
+            f'Client {self.client_id} has different keys for train ({train_classes.keys()}) and test ({test_classes.keys()}).'
+
 
     def client_update(self, global_model, global_init_model, round_index):
         self.elapsed_comm_rounds += 1
@@ -94,9 +104,16 @@ class Client:
                 result = np.append(result, [v.data.numpy().reshape(-1)])
         return np.array(result)
 
-    def get_class_counts(self):
+    def get_class_counts(self, dataset):
+        if dataset == 'train':
+            ds = self.train_loader
+        elif dataset == 'test':
+            ds = self.test_loader
+        else:
+            raise Error('get_class_counts() - invalid value for parameter dataset: ', dataset)
+
         class_counts = {}
-        for batch in self.train_loader:
+        for batch in ds:
             for label in batch[1]:
                 if label.item() not in class_counts:
                     class_counts[label.item()] = 0
