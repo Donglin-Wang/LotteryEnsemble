@@ -170,12 +170,17 @@ def log_experiment(server, clients, exp_name, exp_settings):
     # log class and mask overlap for every pair of clients
     mask_start_time = time.time()
     num_clients = len(clients)
-    overlap_arr = np.zeros((int(num_clients * (num_clients - 1) / 2), 5), dtype='int32')
+    overlap_arr = np.zeros((int(num_clients * (num_clients - 1) / 2), 5), dtype='float32')
     i = 0
     for c1 in range(len(clients)):
         for c2 in range(c1 + 1, len(clients)):
             mask_c1 = clients[c1].get_mask()
             mask_c2 = clients[c2].get_mask()
+            # Sanity check:
+            if mask_c1.sum() == 0:
+                print(f'PROBLEM: Client {c1} has mask of all zeros.')
+            if mask_c2.sum() == 0:
+                print(f'PROBLEM: Client {c2} has mask of all zeros.')
             mask_overlap = (mask_c1 * mask_c2).sum()
             combined_mask_extent = np.logical_or(mask_c1, mask_c2)
             normalized_mask_overlap = mask_overlap / combined_mask_extent.sum()  # denominator should never be 0
