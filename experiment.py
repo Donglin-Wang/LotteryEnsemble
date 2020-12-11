@@ -1,4 +1,4 @@
-import datetime, time, os
+import datetime, time, os, math
 import numpy as np
 import matplotlib.pyplot as plt
 from client import Client
@@ -184,6 +184,8 @@ def log_experiment(server, clients, exp_name, exp_settings):
             mask_overlap = (mask_c1 * mask_c2).sum()
             combined_mask_extent = np.logical_or(mask_c1, mask_c2)
             normalized_mask_overlap = mask_overlap / combined_mask_extent.sum()  # denominator should never be 0
+            if math.isnan(normalized_mask_overlap):
+                print(f'Nan found for clients {c1}, {c2}. Mask sums: {mask_c1.sum()}, {mask_c2.sum()}')
 
             class_overlap = 0
             classes_c1 = clients[c1].get_class_counts('train')
