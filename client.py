@@ -128,7 +128,7 @@ class Client:
 
     def get_mask(self):
         result = np.array(())
-        for k, v in self.named_buffers:
+        for k, v in self.state_dict:
             if 'weight_mask' in k:
                 result = np.append(result, [v.data.numpy().reshape(-1)])
         return np.array(result)
