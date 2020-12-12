@@ -413,13 +413,13 @@ def train_client_model(acc_thresh, prune_percent, prune_step, prune_verbosity, d
 
 
     potential_model = copy_model(mlp,
-                                 'mnist',
-                                 'mlp', source_buff=dict(mlp.named_buffers()))
+                                 dataset,
+                                 arch, source_buff=dict(mlp.named_buffers()))
     potential_model.load_state_dict(global_state_dict)
 
     global_model = copy_model(potential_model,
-                              'mnist',
-                              'mlp')
+                              dataset,
+                              arch)
 
     num_pruned, num_params = get_prune_summary(potential_model)
     cur_prune_rate = num_pruned / num_params
@@ -484,11 +484,10 @@ def train_client_model_orig(acc_thresh, prune_percent, prune_step, prune_verbosi
     model.load_state_dict(state_dict)
 
     global_model = copy_model(model,
-                              'mnist',
-                              'mlp')
+                              dataset,
+                              arch)
     global_model.load_state_dict(global_state_dict)
-    model = copy_model(global_model,'mnist',
-                                 'mlp', source_buff=dict(model.named_buffers()))
+    model = copy_model(global_model,dataset, arch, source_buff=dict(model.named_buffers()))
 
 
 
