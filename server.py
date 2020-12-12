@@ -1,8 +1,14 @@
 import numpy as np
 import torch
+
 torch.manual_seed(0)
 np.random.seed(0)
-from util import average_weights, create_model, copy_model, log_obj, evaluate, fed_avg, lottery_fl_v2, lottery_fl_v3
+from util import average_weights, create_model, copy_model, log_obj, evaluate, fed_avg, lottery_fl_v2, lottery_fl_v3, \
+    train_client_model, test_client_model, train_client_model_orig
+
+import multiprocessing as mp
+
+from collections import OrderedDict
 
 
 class Server():
@@ -13,7 +19,7 @@ class Server():
         self.comm_rounds = args.comm_rounds
         self.num_clients = args.num_clients
         self.frac = args.frac
-        self.clients = clients
+        self.clients = np.array(clients)
         self.client_data_num = []
         self.elapsed_comm_rounds = 0
         self.accuracies = np.zeros(args.comm_rounds)
@@ -38,69 +44,97 @@ class Server():
         assert self.num_clients == len(clients), "Number of client objects does not match command line input"
 
     def server_update(self):
-        self.elapsed_comm_rounds += 1
-        # Recording the update and storing them in record
-        self.global_models.train()
-        for i in range(0, self.comm_rounds):
-            update_or_not = [0] * self.num_clients
-            # Randomly select a fraction of users to update
-            num_selected_clients = max(int(self.frac * self.num_clients), 1)
-            idx_list = np.random.choice(range(self.num_clients),
-                                        num_selected_clients,
-                                        replace=False)
-            for idx in idx_list:
-                update_or_not[idx] = 1
+        ctx = mp.get_context('spawn')
+        num_selected_clients = max(int(self.frac * self.num_clients), 1)
+        with ctx.Pool(num_selected_clients) as p:
+            self.elapsed_comm_rounds += 1
+            # Recording the update and storing them in record
+            self.global_models.train()
+            for i in range(0, self.comm_rounds):
+                update_or_not = [0] * self.num_clients
+                # Randomly select a fraction of users to update
+                idx_list = np.random.choice(range(self.num_clients),
+                                            num_selected_clients,
+                                            replace=False)
+                for idx in idx_list:
+                    update_or_not[idx] = 1
 
-            print('-------------------------------------', flush=True)
-            print(f'Communication Round #{i}', flush=True)
-            print('-------------------------------------', flush=True)
-            for j in range(len(update_or_not)):
+                self.selected_client_tally[i, idx_list] += 1
+                for m in self.clients[idx_list]:
+                    if m.model is None:
+                        m.model = copy_model(self.global_models, self.args.dataset, self.args.arch)
+                        m.state_dict = m.model.state_dict()
+                    # models.append(m.model)
 
-                if update_or_not[j]:
-                    if self.args.avg_logic == "standalone":
-                        self.clients[j].client_update(self.clients[j].model, self.global_init_model, i)
-                    else:
-                        self.clients[j].client_update(self.global_models, self.global_init_model, i)
+                print('-------------------------------------', flush=True)
+                print(f'Communication Round #{i}', flush=True)
+                print('-------------------------------------', flush=True)
+                # for j in range(len(update_or_not)):
+                #
+                #     if update_or_not[j]:
+                #         if self.args.avg_logic == "standalone":
+                #             self.clients[j].client_update(self.clients[j].model, self.global_init_model, i)
+                #         else:
+                #             self.clients[j].client_update(self.global_models, self.global_init_model, i)
+                #     else:
+                #         pass
+                #         # copy_model(self.clients[j].model, self.args.dataset, self.args.arch)
+
+                a = p.starmap(train_client_model_orig, [(self.args.acc_thresh, self.args.prune_percent, self.args.prune_step,
+                                                    self.args.prune_verbosity, self.args.dataset, self.args.arch,
+                                                    self.args.lr, False,self.args.client_epoch, self.args.log_folder,
+                                                    i, c, self.clients[c].model.state_dict(),
+                                                    self.global_models.state_dict(), self.clients[c].train_loader,
+                                                    self.clients[c].test_loader, self.clients[c].last_client_acc
+                                                    ) for c in idx_list])
+                for (k, vals) in enumerate(a):
+                    self.clients[idx_list[k]].losses[i:] = vals[0]
+                    self.clients[idx_list[k]].accuracies[i:] = vals[1]
+                    self.clients[idx_list[k]].prune_rates[i:] = vals[2]
+                    self.clients[idx_list[k]].model.load_state_dict(vals[3])
+                    self.client_accuracies[idx_list[k]][i:] = vals[4]
+
+                if self.args.avg_logic == "fed_avg":
+                    self.global_models = fed_avg([m.model for m in self.clients], self.args.dataset,
+                                                 self.args.arch,
+                                                 self.client_data_num)
+                elif self.args.avg_logic == 'lottery_fl_v2':
+                    self.global_models = lottery_fl_v2(self.global_models, [m.model for m in self.clients[idx_list]],
+                                                       self.args.dataset,
+                                                       self.args.arch,
+                                                       self.client_data_num[idx_list])
+                elif self.args.avg_logic == 'lottery_fl_v3':
+                    self.global_models = lottery_fl_v3(self.global_models, [m.model for m in self.clients[idx_list]],
+                                                       self.args.dataset,
+                                                       self.args.arch,
+                                                       self.client_data_num[idx_list])
+                elif self.args.avg_logic == "standalone":
+                    pass  # no averaging in the server
                 else:
-                    pass
-                    # copy_model(self.clients[j].model, self.args.dataset, self.args.arch)
+                    self.global_models = average_weights([m.model for m in self.clients[idx_list]], self.args.dataset,
+                                                         self.args.arch,
+                                                         self.client_data_num[idx_list])
+                # del models
 
-            models = []
-            self.selected_client_tally[i, idx_list] += 1
-            for m in self.clients[idx_list]:
-                models.append(m.model)
-            if self.args.avg_logic == "fed_avg":
-                self.global_models = fed_avg(list(map(lambda x: x.model, self.clients)), self.args.dataset,
-                                             self.args.arch,
-                                             self.client_data_num)
-            elif self.args.avg_logic == 'lottery_fl_v2':
-                self.global_models = lottery_fl_v2(self.global_models, models, self.args.dataset,
-                                                          self.args.arch,
-                                                          self.client_data_num[idx_list])
-            elif self.args.avg_logic == 'lottery_fl_v3':
-                self.global_models = lottery_fl_v3(self.global_models, models, self.args.dataset,
-                                                          self.args.arch,
-                                                          self.client_data_num[idx_list])
-            elif self.args.avg_logic == "standalone":
-                pass #no averaging in the server
-            else:
-                self.global_models = average_weights(models, self.args.dataset,
-                                                          self.args.arch,
-                                                          self.client_data_num[idx_list])
-            del models
+                # eval_score = evaluate(self.global_models,
+                #                       self.test_loader,
+                #                       verbose=self.args.test_verbosity)
+                # print(f"Server accuracies over the batch + avg at the end: {eval_score['Accuracy']}")
+                # self.accuracies[i] = eval_score['Accuracy'][-1]
 
-            eval_score = evaluate(self.global_models,
-                                  self.test_loader,
-                                  verbose=self.args.test_verbosity)
-            print(f"Server accuracies over the batch + avg at the end: {eval_score['Accuracy']}")
-            self.accuracies[i] = eval_score['Accuracy'][-1]
 
-            for k, m in enumerate(self.clients):
-                if k in idx_list:
-                    self.client_accuracies[k][i] = m.evaluate()
-                else:
-                    if i == 0:
-                        pass
-                    else:
-                        self.client_accuracies[k][i] = self.client_accuracies[k][i - 1]
-            print(f"Mean client accs: {self.client_accuracies.mean(axis=0)[i]}")
+                # a = p.starmap(test_client_model, [(self.clients[c].model.state_dict(), self.clients[c].test_loader,
+                #                                    self.args.test_verbosity) for c in idx_list])
+                # for (k, val) in enumerate(a):
+                #     self.client_accuracies[idx_list[k]][i:] = val
+
+                # for k, m in enumerate(self.clients):
+                #     if k in idx_list:
+                #         self.client_accuracies[k][i] = m.evaluate()
+                #         m.clear_model()
+                #     else:
+                #         if i == 0:
+                #             pass
+                #         else:
+                #             self.client_accuracies[k][i] = self.client_accuracies[k][i - 1]
+                print(f"Mean client accs: {self.client_accuracies.mean(axis=0)[i]}")

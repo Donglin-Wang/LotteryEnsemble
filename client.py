@@ -5,6 +5,7 @@ import numpy as np
 import torch 
 torch.manual_seed(0)
 np.random.seed(0)
+from multiprocessing import Pool
 
 class Client:
     def __init__(self, 
@@ -14,9 +15,10 @@ class Client:
                  client_id=None):
         self.args = args
         print("Creating model for client "+ str(client_id))
-        self.model = create_model(self.args.dataset, self.args.arch)
+        self.model = None
+        #self.model = create_model(self.args.dataset, self.args.arch)
         print("Copying model for client "+ str(client_id))
-        self.init_model = copy_model(self.model, self.args.dataset, self.args.arch)
+        #self.init_model = copy_model(self.model, self.args.dataset, self.args.arch)
         print("Done Copying model for client "+ str(client_id))
         self.test_loader = test_loader
         self.train_loader = train_loader
@@ -25,7 +27,10 @@ class Client:
         self.accuracies = np.zeros((args.comm_rounds, self.args.client_epoch))
         self.losses = np.zeros((args.comm_rounds, self.args.client_epoch))
         self.prune_rates = np.zeros(args.comm_rounds)
-        assert self.model, "Something went wrong and the model cannot be initialized"
+        self.named_buffers = None
+        self.last_client_acc = 0
+        self.state_dict = None
+       # assert self.model, "Something went wrong and the model cannot be initialized"
 
         # This is a sanity check that we're getting proper data. Once we are confident about this, we can delete this.
         # train_classes =  self.get_class_counts('train')
@@ -41,29 +46,45 @@ class Client:
     def client_update(self, global_model, global_init_model, round_index):
         self.elapsed_comm_rounds += 1
         print(f'***** Client #{self.client_id} *****', flush=True)
-        self.model = copy_model(global_model,
+        if self.model is None:
+            self.model = global_model
+        if self.named_buffers is None:
+            self.named_buffers = dict(self.model.named_buffers())
+
+        potential_model = copy_model(global_model,
                                 self.args.dataset,
                                 self.args.arch,
-                                dict(self.model.named_buffers()))
+                                self.named_buffers)
         
-        num_pruned, num_params = get_prune_summary(self.model)
+        num_pruned, num_params = get_prune_summary(potential_model)
         cur_prune_rate = num_pruned / num_params
         #prune_step = math.floor(num_params * self.args.prune_step)
         
-        eval_score = evaluate(self.model, 
+        eval_score = evaluate(potential_model,
                          self.test_loader,
                          verbose=self.args.test_verbosity)
+
+        print(f"previous client acc: {self.last_client_acc} current client acc: {eval_score['Accuracy'][-1]}")
+        eval_score = eval_score['Accuracy'][-1]
+        if eval_score > self.last_client_acc:
+            del self.model
+            self.model = potential_model
+            self.last_client_acc = eval_score
+        else:
+            del potential_model
         
-        if eval_score['Accuracy'][0] > self.args.acc_thresh and cur_prune_rate < self.args.prune_percent:
+        if self.last_client_acc > self.args.acc_thresh and cur_prune_rate < self.args.prune_percent:
             # I'm adding 0.001 just to ensure we go clear the target prune_percent. This may not be needed
             prune_fraction = min(self.args.prune_step, 0.001 + self.args.prune_percent - cur_prune_rate)
             prune_fixed_amount(self.model, 
                                prune_fraction,
                                verbose=self.args.prune_verbosity, glob=True)
+            self.named_buffers = dict(self.model.named_buffers())
+            del self.model
             self.model = copy_model(global_init_model,
                                     self.args.dataset,
                                     self.args.arch,
-                                    dict(self.model.named_buffers()))
+                                    self.named_buffers)
         losses = []
         accuracies = []
         for i in range(self.args.client_epoch):
@@ -89,19 +110,25 @@ class Client:
         self.losses[round_index:] = np.array(losses)
         self.accuracies[round_index:] = np.array(accuracies)
         self.prune_rates[round_index:] = cur_prune_rate
+        self.state_dict = self.model.state_dict()
 
 
-        return copy_model(self.model, self.args.dataset, self.args.arch)
+        #return copy_model(self.model, self.args.dataset, self.args.arch)
 
     def evaluate(self):
         eval_score = evaluate(self.model,
                               self.test_loader,
                               verbose=self.args.test_verbosity)
-        return eval_score['Accuracy'][-1]
+        self.last_client_acc = eval_score['Accuracy'][-1]
+        return self.last_client_acc
+
+    def clear_model(self):
+        del self.model
+        self.model = None
 
     def get_mask(self):
         result = np.array(())
-        for k, v in self.model.named_buffers():
+        for k, v in self.named_buffers:
             if 'weight_mask' in k:
                 result = np.append(result, [v.data.numpy().reshape(-1)])
         return np.array(result)

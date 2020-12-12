@@ -93,7 +93,7 @@ def log_experiment(server, clients, exp_name, exp_settings):
         for j, acc in enumerate(c.accuracies):
             mu_part_client_accs[i][j] = acc[-1]
 
-    with open(f'{save_path}/mu_client_accs.npy', 'wb') as f:
+    with open(f'{save_path}/mu_client_part_accs.npy', 'wb') as f:
         np.save(f, mu_part_client_accs)
 
 

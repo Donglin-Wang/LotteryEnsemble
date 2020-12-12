@@ -179,20 +179,15 @@ def train(round,
     num_batch = len(train_loader)
     model.train()
     metric_names = ['Loss',
-                    'Accuracy', 
-                    'Balanced Accuracy',
-                    'Precision Micro',
-                    'Recall Micro',
-                    'Precision Macro',
-                    'Recall Macro']
+                    'Accuracy']
 
     score = {name:[] for name in metric_names}
 
-    progress_bar = tqdm(enumerate(train_loader),
-                        total = num_batch,
-                        file=sys.stdout)   
+    # progress_bar = tqdm(enumerate(train_loader),
+    #                     total = num_batch,
+    #                     file=sys.stdout)
     # Iterating over all mini-batches
-    for i, data in progress_bar:
+    for i, data in enumerate(train_loader):
     
         x, ytrue = data
 
@@ -230,22 +225,17 @@ def evaluate(model, data_loader, verbose=True):
     model.eval()
     
     metric_names = ['Loss',
-                    'Accuracy', 
-                    'Balanced Accuracy',
-                    'Precision Micro',
-                    'Recall Micro',
-                    'Precision Macro',
-                    'Recall Macro']
+                    'Accuracy']
     
     score = {name:[] for name in metric_names}
     
     num_batch = len(data_loader)
     
-    progress_bar = tqdm(enumerate(data_loader), 
-                        total=num_batch,
-                        file=sys.stdout)
+    #progress_bar = tqdm(enumerate(data_loader),
+                        # total=num_batch,
+                        # file=sys.stdout)
     
-    for i, (x, ytrue) in progress_bar:
+    for i, (x, ytrue) in enumerate(data_loader):
         
         yraw = model(x)
         
@@ -253,7 +243,7 @@ def evaluate(model, data_loader, verbose=True):
         
         score = calculate_metrics(score, ytrue, yraw, ypred)
         
-        progress_bar.set_description('Evaluating')
+        #progress_bar.set_description('Evaluating')
     
    
         
@@ -361,12 +351,12 @@ def get_prune_params(model):
                     num_global_weights += layer_weight_count
                     
     return layers, num_global_weights, layers_weight_count
-        
-    
 
+
+loss = nn.CrossEntropyLoss()
 def calculate_metrics(score, ytrue, yraw, ypred):
+    global loss
     if 'Loss' in score:
-        loss = nn.CrossEntropyLoss()
         score['Loss'].append(loss(yraw, ytrue))
     if 'Accuracy' in score:
         score['Accuracy'].append(skmetrics.accuracy_score(ytrue, ypred))
@@ -409,3 +399,162 @@ def log_obj(path, obj):
     #         torch.save(obj, file)
     #     else:
     #         pickle.dump(obj, file)
+
+from itertools import chain
+from collections import OrderedDict
+
+def train_client_model(acc_thresh, prune_percent, prune_step, prune_verbosity, dataset, arch, lr, train_verbosity, client_epoch, log_folder,
+                       round, client_id, state_dict, global_state_dict, train_loader, test_loader, last_client_acc):
+
+    mlp = create_model(dataset, arch)
+    prune_fixed_amount(mlp, 0.0, False)
+    mlp.load_state_dict(state_dict)
+
+
+
+    potential_model = copy_model(mlp,
+                                 'mnist',
+                                 'mlp', source_buff=dict(mlp.named_buffers()))
+    potential_model.load_state_dict(global_state_dict)
+
+    global_model = copy_model(potential_model,
+                              'mnist',
+                              'mlp')
+
+    num_pruned, num_params = get_prune_summary(potential_model)
+    cur_prune_rate = num_pruned / num_params
+    #prune_step = math.floor(num_params * self.args.prune_step)
+
+    eval_score = evaluate(potential_model,
+                          test_loader,
+                          verbose=False)
+
+    print(f"previous client acc: {last_client_acc} current client acc: {eval_score['Accuracy'][-1]}")
+    eval_score = eval_score['Accuracy'][-1]
+    if eval_score > last_client_acc:
+        del mlp
+        mlp = potential_model
+        last_client_acc = eval_score
+    else:
+        del potential_model
+
+    if last_client_acc > acc_thresh and cur_prune_rate < prune_percent:
+        # I'm adding 0.001 just to ensure we go clear the target prune_percent. This may not be needed
+        prune_fraction = min(prune_step, 0.001 + prune_percent - cur_prune_rate)
+        prune_fixed_amount(mlp,
+                           prune_fraction,
+                           verbose=prune_verbosity, glob=True)
+        named_buffers = dict(mlp.named_buffers())
+        del mlp
+        mlp = copy_model(global_model,
+                                dataset,
+                                arch,
+                                named_buffers)
+    losses = []
+    accuracies = []
+    for i in range(client_epoch):
+        train_score = train(round, client_id, i, mlp,
+                            train_loader,
+                            lr=lr,
+                            verbose=train_verbosity)
+
+        losses.append(train_score['Loss'][-1].data.item())
+        accuracies.append(train_score['Accuracy'][-1])
+
+
+    mask_log_path = f'{log_folder}/round{round}/c{client_id}.mask'
+    client_mask = dict(mlp.named_buffers())
+    log_obj(mask_log_path, client_mask)
+
+    num_pruned, num_params = get_prune_summary(mlp)
+    cur_prune_rate = num_pruned / num_params
+    prune_step = math.floor(num_params * prune_step)
+    print(f"num_pruned {num_pruned}, num_params {num_params}, cur_prune_rate {cur_prune_rate}, prune_step: {prune_step}")
+    del global_model
+
+    return np.array(losses), np.array(accuracies), cur_prune_rate, mlp.state_dict()
+
+
+
+def train_client_model_orig(acc_thresh, prune_percent, prune_step, prune_verbosity, dataset, arch, lr, train_verbosity, client_epoch, log_folder,
+                       round, client_id, state_dict, global_state_dict, train_loader, test_loader, last_client_acc):
+
+    model = create_model(dataset, arch)
+    prune_fixed_amount(model, 0.0, False)
+    model.load_state_dict(state_dict)
+
+    global_model = copy_model(model,
+                              'mnist',
+                              'mlp')
+    global_model.load_state_dict(global_state_dict)
+    model = copy_model(global_model,'mnist',
+                                 'mlp', source_buff=dict(model.named_buffers()))
+
+
+
+
+    num_pruned, num_params = get_prune_summary(model)
+    cur_prune_rate = num_pruned / num_params
+    #prune_step = math.floor(num_params * self.args.prune_step)
+
+    eval_score = evaluate(model,
+                          test_loader,
+                          verbose=False)
+
+    #print(f"previous client acc: {last_client_acc} current client acc: {eval_score['Accuracy'][-1]}")
+    eval_score = eval_score['Accuracy'][-1]
+
+
+    if eval_score > acc_thresh and cur_prune_rate < prune_percent:
+        # I'm adding 0.001 just to ensure we go clear the target prune_percent. This may not be needed
+        prune_fraction = min(prune_step, 0.001 + prune_percent - cur_prune_rate)
+        prune_fixed_amount(model,
+                           prune_fraction,
+                           verbose=prune_verbosity, glob=True)
+        model = copy_model(global_model,
+                         dataset,
+                         arch,
+                         dict(model.named_buffers()))
+    losses = []
+    accuracies = []
+    for i in range(client_epoch):
+        train_score = train(round, client_id, i, model,
+                            train_loader,
+                            lr=lr,
+                            verbose=train_verbosity)
+
+        losses.append(train_score['Loss'][-1].data.item())
+        accuracies.append(train_score['Accuracy'][-1])
+
+
+    mask_log_path = f'{log_folder}/round{round}/c{client_id}.mask'
+    client_mask = dict(model.named_buffers())
+    log_obj(mask_log_path, client_mask)
+
+    num_pruned, num_params = get_prune_summary(model)
+    cur_prune_rate = num_pruned / num_params
+    prune_step = math.floor(num_params * prune_step)
+    print(f"num_pruned {num_pruned}, num_params {num_params}, cur_prune_rate {cur_prune_rate}, prune_step: {prune_step}")
+    del global_model
+
+    eval_score = evaluate(model,
+                          test_loader,
+                          verbose=False)
+
+    #print(f"previous client acc: {last_client_acc} current client acc: {eval_score['Accuracy'][-1]}")
+    eval_score = eval_score['Accuracy'][-1]
+
+    return np.array(losses), np.array(accuracies), cur_prune_rate, model.state_dict(), eval_score
+
+
+
+
+def test_client_model(state_dict, test_loader, test_verbosity):
+    from archs.mnist.mlp import MLP
+    mlp = MLP()
+    prune_fixed_amount(mlp, 0.0, False)
+    mlp.load_state_dict(state_dict)
+    eval_score = evaluate(mlp,
+                          test_loader,
+                          test_verbosity)
+    return eval_score['Accuracy'][-1]

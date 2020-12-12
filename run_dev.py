@@ -8,7 +8,7 @@ np.random.seed(0)
 
 if __name__ == '__main__':
     overrides = {
-        'log_folder': './weights',
+        'log_folder': './drive/MyDrive/weights/cifar',
         'running_on_cloud': False
     }
 
@@ -23,8 +23,8 @@ if __name__ == '__main__':
 
     experiments = {
         'baseline_5_c_per_round':  # this key determines the output folder name under log_folder
-            build_args(arch='mlp',
-                       dataset='mnist',
+            build_args(arch='cnn',
+                       dataset='cifar10',
                        data_split=data_split,
                        client=Client,
                        server=Server,
@@ -42,8 +42,8 @@ if __name__ == '__main__':
                        n_samples=n_samples,
                        n_class=n_class),
         'baseline_10_c_per_round':  # this key determines the output folder name under log_folder
-            build_args(arch='mlp',
-                       dataset='mnist',
+            build_args(arch='cnn',
+                       dataset='cifar10',
                        data_split=data_split,
                        client=Client,
                        server=Server,
@@ -61,8 +61,8 @@ if __name__ == '__main__':
                        n_samples=n_samples,
                        n_class=n_class),
         'baseline_20_c_per_round':  # this key determines the output folder name under log_folder
-            build_args(arch='mlp',
-                       dataset='mnist',
+            build_args(arch='cnn',
+                       dataset='cifar10',
                        data_split=data_split,
                        client=Client,
                        server=Server,
@@ -80,8 +80,8 @@ if __name__ == '__main__':
                        n_samples=n_samples,
                        n_class=n_class),
         'fed_avg_5_c_per_round':  # this key determines the output folder name under log_folder
-            build_args(arch='mlp',
-                       dataset='mnist',
+            build_args(arch='cnn',
+                       dataset='cifar10',
                        data_split=data_split,
                        client=Client,
                        server=Server,
@@ -99,8 +99,8 @@ if __name__ == '__main__':
                        n_samples=n_samples,
                        n_class=n_class),
         'fed_avg_10_c_per_round':  # this key determines the output folder name under log_folder
-            build_args(arch='mlp',
-                       dataset='mnist',
+            build_args(arch='cnn',
+                       dataset='cifar10',
                        data_split=data_split,
                        client=Client,
                        server=Server,
@@ -118,8 +118,8 @@ if __name__ == '__main__':
                        n_samples=n_samples,
                        n_class=n_class),
         'fed_avg_20_c_per_round':  # this key determines the output folder name under log_folder
-            build_args(arch='mlp',
-                       dataset='mnist',
+            build_args(arch='cnn',
+                       dataset='cifar10',
                        data_split=data_split,
                        client=Client,
                        server=Server,
@@ -136,7 +136,7 @@ if __name__ == '__main__':
                        rate_unbalance=rate_unbalance,
                        n_samples=n_samples,
                        n_class=n_class),
-        'lottery_fl_5_c_per_round_0.9_thresh':  # this key determines the output folder name under log_folder
+        'lottery_fl_5_c_per_round_0.9_thresh_v2':  # this key determines the output folder name under log_folder
             build_args(arch='mlp',
                        dataset='mnist',
                        data_split=data_split,
@@ -156,8 +156,8 @@ if __name__ == '__main__':
                        n_samples=n_samples,
                        n_class=n_class),
         'lottery_fl_10_c_per_round_0.9_thresh':  # this key determines the output folder name under log_folder
-            build_args(arch='mlp',
-                       dataset='mnist',
+            build_args(arch='cnn',
+                       dataset='cifar10',
                        data_split=data_split,
                        client=Client,
                        server=Server,
@@ -174,7 +174,7 @@ if __name__ == '__main__':
                        rate_unbalance=rate_unbalance,
                        n_samples=n_samples,
                        n_class=n_class),
-        'lottery_fl_20_c_per_round_0.9_thresh':  # this key determines the output folder name under log_folder
+        'lottery_fl_20_c_per_round_0.9_thresh_v2':  # this key determines the output folder name under log_folder
             build_args(arch='mlp',
                        dataset='mnist',
                        data_split=data_split,
@@ -250,9 +250,9 @@ if __name__ == '__main__':
                        rate_unbalance=rate_unbalance,
                        n_samples=n_samples,
                        n_class=n_class),
-        'lottery_fl_5_c_per_round_0.3_thresh':  # this key determines the output folder name under log_folder
+        'lottery_fl_5_c_per_round_0.3_thresh_mlp_pfixed':  # this key determines the output folder name under log_folder
             build_args(arch='mlp',
-                       dataset='mnist',
+                       dataset='cifar10',
                        data_split=data_split,
                        client=Client,
                        server=Server,
@@ -960,5 +960,5 @@ if __name__ == '__main__':
     }
 
     # To run 1 or more set selection
-    selection = ['fed_avg_5_c_per_round_cifar',]
+    selection = ['lottery_fl_20_c_per_round_0.9_thresh_v2',]
     run_experiments({k: experiments[k] for k in selection}, overrides)
