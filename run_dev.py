@@ -136,7 +136,7 @@ if __name__ == '__main__':
                        rate_unbalance=rate_unbalance,
                        n_samples=n_samples,
                        n_class=n_class),
-        'lottery_fl_5_c_per_round_0.9_thresh_v2':  # this key determines the output folder name under log_folder
+        'lottery_fl_5_c_per_round_0.9_thresh':  # this key determines the output folder name under log_folder
             build_args(arch='cnn',
                        dataset='mnist',
                        data_split=data_split,
@@ -174,7 +174,7 @@ if __name__ == '__main__':
                        rate_unbalance=rate_unbalance,
                        n_samples=n_samples,
                        n_class=n_class),
-        'lottery_fl_20_c_per_round_0.9_thresh_v2':  # this key determines the output folder name under log_folder
+        'lottery_fl_20_c_per_round_0.9_thresh':  # this key determines the output folder name under log_folder
             build_args(arch='cnn',
                        dataset='mnist',
                        data_split=data_split,
@@ -960,5 +960,5 @@ if __name__ == '__main__':
     }
 
     # To run 1 or more set selection
-    selection = ['baseline_5_c_per_round',]
+    selection = ['lottery_fl_5_c_per_round_0.9_thresh',]
     run_experiments({k: experiments[k] for k in selection}, overrides)

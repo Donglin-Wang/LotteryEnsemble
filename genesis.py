@@ -2,7 +2,7 @@ import math
 import numpy as np
 from server import Server
 from client import Client
-from util import copy_model, evaluate, fed_avg, get_prune_summary, prune_fixed_amount, train, train_client_model_genesis
+from util import copy_model, evaluate, fed_avg, get_prune_summary, prune_fixed_amount, train, train_client_model_genesis, average_weights
 import multiprocessing as mp
 
 class ClientGenesis(Client):
@@ -70,7 +70,7 @@ class ServerGenesis(Server):
                     self.clients[selected_clients[k]].model.load_state_dict(vals[3])
                     self.client_accuracies[selected_clients[k]][comm_round:] = vals[4]
 
-                new_model = fed_avg([c.model for c in self.clients],
+                new_model = average_weights([c.model for c in self.clients[selected_clients]],
                                     self.args.dataset, self.args.arch, self.client_data_num)
                 # fed_avg clobbers the mask, so we need to copy it back into the global model
                 global_buffers = dict(self.global_models.named_buffers())

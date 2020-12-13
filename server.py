@@ -65,7 +65,7 @@ class Server():
                         m.state_dict = m.model.state_dict()
 
                 print('-------------------------------------', flush=True)
-                print(f'Communication Round #{i}', flush=True)
+                print(f'Communication Round #{i} Clients={idx_list}', flush=True)
                 print('-------------------------------------', flush=True)
                 a = p.starmap(train_client_model_orig, [(self.args.acc_thresh, self.args.prune_percent, self.args.prune_step,
                                                     self.args.prune_verbosity, self.args.dataset, self.args.arch,
@@ -102,4 +102,5 @@ class Server():
                     self.global_models = average_weights([m.model for m in self.clients[idx_list]], self.args.dataset,
                                                          self.args.arch,
                                                          self.client_data_num[idx_list])
-                print(f"Mean client accs: {self.client_accuracies.mean(axis=0)[i]}")
+                print(f"End of round accuracy: all={self.client_accuracies[:, i].mean()}, "
+                    f"participating={self.client_accuracies[idx_list, i].mean()}")
