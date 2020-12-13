@@ -26,17 +26,16 @@ class Server():
         self.client_accuracies = np.zeros((self.args.num_clients, self.args.comm_rounds))
         self.selected_client_tally = np.zeros((self.args.comm_rounds, self.args.num_clients))
         self.test_loader = test_loader
-
+        self.init_model = create_model(args.dataset, args.arch)
         for client in self.clients:
             self.client_data_num.append(len(client.train_loader))
+            client.state_dict = self.init_model.state_dict()
         self.client_data_num = np.array(self.client_data_num)
 
         # The extra 1 entry in client_models and global_models are used to store
         # the results after last communication round
         self.client_models = np.zeros((self.comm_rounds + 1, self.num_clients), dtype='object')
         self.global_models = None  # np.zeros((self.comm_rounds + 1,), dtype='object')
-
-        self.init_model = create_model(args.dataset, args.arch)
 
         self.global_models = self.init_model
         self.global_init_model = copy_model(self.init_model, args.dataset, args.arch)
