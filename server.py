@@ -4,7 +4,7 @@ import torch
 torch.manual_seed(0)
 np.random.seed(0)
 from util import average_weights, create_model, copy_model, log_obj, evaluate, fed_avg, lottery_fl_v2, lottery_fl_v3, \
-    train_client_model, test_client_model, train_client_model_orig
+    train_client_model, train_client_model_orig
 
 import multiprocessing as mp
 
@@ -63,27 +63,16 @@ class Server():
                     if m.model is None:
                         m.model = copy_model(self.global_models, self.args.dataset, self.args.arch)
                         m.state_dict = m.model.state_dict()
-                    # models.append(m.model)
 
                 print('-------------------------------------', flush=True)
                 print(f'Communication Round #{i}', flush=True)
                 print('-------------------------------------', flush=True)
-                # for j in range(len(update_or_not)):
-                #
-                #     if update_or_not[j]:
-                #         if self.args.avg_logic == "standalone":
-                #             self.clients[j].client_update(self.clients[j].model, self.global_init_model, i)
-                #         else:
-                #             self.clients[j].client_update(self.global_models, self.global_init_model, i)
-                #     else:
-                #         pass
-                #         # copy_model(self.clients[j].model, self.args.dataset, self.args.arch)
-
                 a = p.starmap(train_client_model_orig, [(self.args.acc_thresh, self.args.prune_percent, self.args.prune_step,
                                                     self.args.prune_verbosity, self.args.dataset, self.args.arch,
                                                     self.args.lr, False,self.args.client_epoch, self.args.log_folder,
                                                     i, c, self.clients[c].model.state_dict(),
-                                                    self.global_models.state_dict(), self.clients[c].train_loader,
+                                                    self.global_models.state_dict() if self.args.avg_logic != "standalone" else self.clients[c].model.state_dict(),
+                                                    self.clients[c].train_loader,
                                                     self.clients[c].test_loader, self.clients[c].last_client_acc
                                                     ) for c in idx_list])
                 for (k, vals) in enumerate(a):
@@ -113,27 +102,4 @@ class Server():
                     self.global_models = average_weights([m.model for m in self.clients[idx_list]], self.args.dataset,
                                                          self.args.arch,
                                                          self.client_data_num[idx_list])
-                # del models
-
-                # eval_score = evaluate(self.global_models,
-                #                       self.test_loader,
-                #                       verbose=self.args.test_verbosity)
-                # print(f"Server accuracies over the batch + avg at the end: {eval_score['Accuracy']}")
-                # self.accuracies[i] = eval_score['Accuracy'][-1]
-
-
-                # a = p.starmap(test_client_model, [(self.clients[c].model.state_dict(), self.clients[c].test_loader,
-                #                                    self.args.test_verbosity) for c in idx_list])
-                # for (k, val) in enumerate(a):
-                #     self.client_accuracies[idx_list[k]][i:] = val
-
-                # for k, m in enumerate(self.clients):
-                #     if k in idx_list:
-                #         self.client_accuracies[k][i] = m.evaluate()
-                #         m.clear_model()
-                #     else:
-                #         if i == 0:
-                #             pass
-                #         else:
-                #             self.client_accuracies[k][i] = self.client_accuracies[k][i - 1]
                 print(f"Mean client accs: {self.client_accuracies.mean(axis=0)[i]}")

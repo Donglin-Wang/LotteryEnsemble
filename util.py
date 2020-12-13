@@ -480,7 +480,6 @@ def train_client_model_orig(acc_thresh, prune_percent, prune_step, prune_verbosi
                        round, client_id, state_dict, global_state_dict, train_loader, test_loader, last_client_acc):
 
     model = create_model(dataset, arch)
-    prune_fixed_amount(model, 0.0, False)
     model.load_state_dict(state_dict)
 
     global_model = copy_model(model,
@@ -546,14 +545,38 @@ def train_client_model_orig(acc_thresh, prune_percent, prune_step, prune_verbosi
     return np.array(losses), np.array(accuracies), cur_prune_rate, model.state_dict(), eval_score
 
 
+def train_client_model_genesis(acc_thresh, prune_percent, prune_step, prune_verbosity, dataset, arch, lr, train_verbosity, client_epoch, log_folder,
+                       round, client_id, global_state_dict, train_loader, test_loader, last_client_acc):
+
+    model = create_model(dataset, arch)
+    model.load_state_dict(global_state_dict)
+
+    losses = []
+    accuracies = []
+    for i in range(client_epoch):
+        train_score = train(round, client_id, i, model,
+                            train_loader,
+                            lr=lr,
+                            verbose=train_verbosity)
+
+        losses.append(train_score['Loss'][-1].data.item())
+        accuracies.append(train_score['Accuracy'][-1])
 
 
-def test_client_model(state_dict, test_loader, test_verbosity):
-    from archs.mnist.mlp import MLP
-    mlp = MLP()
-    prune_fixed_amount(mlp, 0.0, False)
-    mlp.load_state_dict(state_dict)
-    eval_score = evaluate(mlp,
+    mask_log_path = f'{log_folder}/round{round}/c{client_id}.mask'
+    client_mask = dict(model.named_buffers())
+    log_obj(mask_log_path, client_mask)
+
+    num_pruned, num_params = get_prune_summary(model)
+    cur_prune_rate = num_pruned / num_params
+    prune_step = math.floor(num_params * prune_step)
+    print(f"num_pruned {num_pruned}, num_params {num_params}, cur_prune_rate {cur_prune_rate}, prune_step: {prune_step}")
+
+    eval_score = evaluate(model,
                           test_loader,
-                          test_verbosity)
-    return eval_score['Accuracy'][-1]
+                          verbose=False)
+
+    #print(f"previous client acc: {last_client_acc} current client acc: {eval_score['Accuracy'][-1]}")
+    eval_score = eval_score['Accuracy'][-1]
+
+    return np.array(losses), np.array(accuracies), cur_prune_rate, model.state_dict(), eval_score
