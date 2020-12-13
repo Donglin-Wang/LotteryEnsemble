@@ -54,10 +54,10 @@ def get_dataset_mnist_extr_noniid(num_users, n_class, nsamples, rate_unbalance, 
                                              batch_size=batch_size, shuffle=True))
 
     for  (_,c_t_idx) in user_groups_test.items():
-        if len(c_t_idx) == 1000:
-            c_t_idx = np.concatenate((c_t_idx, c_t_idx))
-        if len(c_t_idx) > 2000:
-            c_t_idx = c_t_idx[:2001]
+        # if len(c_t_idx) == 1000:
+        #     c_t_idx = np.concatenate((c_t_idx, c_t_idx))
+        # if len(c_t_idx) > 2000:
+        #     c_t_idx = c_t_idx[:2001]
         user_test_loaders.append(DataLoader(DatasetSplit(test_dataset, c_t_idx),
                                             batch_size=batch_size, shuffle=True))
 
@@ -338,11 +338,9 @@ def get_data(num_clients, dataset_name,
 
     train_data, test_data = [], []
 
-    transform = tf.Compose(
-        [tf.ToTensor(),
-         tf.Normalize((0.5), (0.5))
-         ]
-    )
+    transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.1307,), (0.3081,))])
 
     # Downloading data based on inputs. If the data is already downloaded,
     # it won't be download twice
