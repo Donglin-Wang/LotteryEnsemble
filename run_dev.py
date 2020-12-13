@@ -137,7 +137,7 @@ if __name__ == '__main__':
                        n_samples=n_samples,
                        n_class=n_class),
         'lottery_fl_5_c_per_round_0.9_thresh_v2':  # this key determines the output folder name under log_folder
-            build_args(arch='mlp',
+            build_args(arch='cnn',
                        dataset='mnist',
                        data_split=data_split,
                        client=Client,
@@ -175,7 +175,7 @@ if __name__ == '__main__':
                        n_samples=n_samples,
                        n_class=n_class),
         'lottery_fl_20_c_per_round_0.9_thresh_v2':  # this key determines the output folder name under log_folder
-            build_args(arch='mlp',
+            build_args(arch='cnn',
                        dataset='mnist',
                        data_split=data_split,
                        client=Client,
@@ -194,7 +194,7 @@ if __name__ == '__main__':
                        n_samples=n_samples,
                        n_class=n_class),
         'lottery_fl_5_c_per_round_0.5_thresh':  # this key determines the output folder name under log_folder
-            build_args(arch='mlp',
+            build_args(arch='cnn',
                        dataset='mnist',
                        data_split=data_split,
                        client=Client,
@@ -213,7 +213,7 @@ if __name__ == '__main__':
                        n_samples=n_samples,
                        n_class=n_class),
         'lottery_fl_10_c_per_round_0.5_thresh':  # this key determines the output folder name under log_folder
-            build_args(arch='mlp',
+            build_args(arch='cnn',
                        dataset='mnist',
                        data_split=data_split,
                        client=Client,
@@ -232,7 +232,7 @@ if __name__ == '__main__':
                        n_samples=n_samples,
                        n_class=n_class),
         'lottery_fl_20_c_per_round_0.5_thresh':  # this key determines the output folder name under log_folder
-            build_args(arch='mlp',
+            build_args(arch='cnn',
                        dataset='mnist',
                        data_split=data_split,
                        client=Client,
@@ -270,7 +270,7 @@ if __name__ == '__main__':
                        n_samples=n_samples,
                        n_class=n_class),
         'lottery_fl_10_c_per_round_0.3_thresh':  # this key determines the output folder name under log_folder
-            build_args(arch='mlp',
+            build_args(arch='cnn',
                        dataset='mnist',
                        data_split=data_split,
                        client=Client,
@@ -289,7 +289,7 @@ if __name__ == '__main__':
                        n_samples=n_samples,
                        n_class=n_class),
         'lottery_fl_20_c_per_round_0.3_thresh':  # this key determines the output folder name under log_folder
-            build_args(arch='mlp',
+            build_args(arch='cnn',
                        dataset='mnist',
                        data_split=data_split,
                        client=Client,
@@ -311,7 +311,7 @@ if __name__ == '__main__':
         ### LOTTERY FL AVG V2 ###########
         ##########################
         'lottery_fl_v2_5_c_per_round_0.9_thresh':  # this key determines the output folder name under log_folder
-            build_args(arch='mlp',
+            build_args(arch='cnn',
                        dataset='mnist',
                        data_split=data_split,
                        client=Client,
@@ -330,7 +330,7 @@ if __name__ == '__main__':
                        n_samples=n_samples,
                        n_class=n_class),
         'lottery_fl_v2_10_c_per_round_0.9_thresh':  # this key determines the output folder name under log_folder
-            build_args(arch='mlp',
+            build_args(arch='cnn',
                        dataset='mnist',
                        data_split=data_split,
                        client=Client,
@@ -349,7 +349,7 @@ if __name__ == '__main__':
                        n_samples=n_samples,
                        n_class=n_class),
         'lottery_fl_v2_20_c_per_round_0.9_thresh':  # this key determines the output folder name under log_folder
-            build_args(arch='mlp',
+            build_args(arch='cnn',
                        dataset='mnist',
                        data_split=data_split,
                        client=Client,
@@ -368,7 +368,7 @@ if __name__ == '__main__':
                        n_samples=n_samples,
                        n_class=n_class),
         'lottery_fl_v2_5_c_per_round_0.5_thresh':  # this key determines the output folder name under log_folder
-            build_args(arch='mlp',
+            build_args(arch='cnn',
                        dataset='mnist',
                        data_split=data_split,
                        client=Client,
@@ -387,7 +387,7 @@ if __name__ == '__main__':
                        n_samples=n_samples,
                        n_class=n_class),
         'lottery_fl_v2_10_c_per_round_0.5_thresh':  # this key determines the output folder name under log_folder
-            build_args(arch='mlp',
+            build_args(arch='cnn',
                        dataset='mnist',
                        data_split=data_split,
                        client=Client,
@@ -406,7 +406,7 @@ if __name__ == '__main__':
                        n_samples=n_samples,
                        n_class=n_class),
         'lottery_fl_v2_20_c_per_round_0.5_thresh':  # this key determines the output folder name under log_folder
-            build_args(arch='mlp',
+            build_args(arch='cnn',
                        dataset='mnist',
                        data_split=data_split,
                        client=Client,
@@ -444,7 +444,7 @@ if __name__ == '__main__':
                        n_samples=n_samples,
                        n_class=n_class),
         'lottery_fl_v2_10_c_per_round_0.3_thresh':  # this key determines the output folder name under log_folder
-            build_args(arch='mlp',
+            build_args(arch='cnn',
                        dataset='mnist',
                        data_split=data_split,
                        client=Client,
@@ -463,7 +463,7 @@ if __name__ == '__main__':
                        n_samples=n_samples,
                        n_class=n_class),
         'lottery_fl_v2_20_c_per_round_0.3_thresh':  # this key determines the output folder name under log_folder
-            build_args(arch='mlp',
+            build_args(arch='cnn',
                        dataset='mnist',
                        data_split=data_split,
                        client=Client,
@@ -485,7 +485,7 @@ if __name__ == '__main__':
         ### LOTTERY FL AVG V3 ###########
         ##########################
         'lottery_fl_v3_5_c_per_round_0.9_thresh':  # this key determines the output folder name under log_folder
-            build_args(arch='mlp',
+            build_args(arch='cnn',
                        dataset='mnist',
                        data_split=data_split,
                        client=Client,
@@ -504,7 +504,7 @@ if __name__ == '__main__':
                        n_samples=n_samples,
                        n_class=n_class),
         'lottery_fl_v3_10_c_per_round_0.9_thresh':  # this key determines the output folder name under log_folder
-            build_args(arch='mlp',
+            build_args(arch='cnn',
                        dataset='mnist',
                        data_split=data_split,
                        client=Client,
@@ -523,7 +523,7 @@ if __name__ == '__main__':
                        n_samples=n_samples,
                        n_class=n_class),
         'lottery_fl_v3_20_c_per_round_0.9_thresh':  # this key determines the output folder name under log_folder
-            build_args(arch='mlp',
+            build_args(arch='cnn',
                        dataset='mnist',
                        data_split=data_split,
                        client=Client,
@@ -542,7 +542,7 @@ if __name__ == '__main__':
                        n_samples=n_samples,
                        n_class=n_class),
         'lottery_fl_v3_5_c_per_round_0.5_thresh':  # this key determines the output folder name under log_folder
-            build_args(arch='mlp',
+            build_args(arch='cnn',
                        dataset='mnist',
                        data_split=data_split,
                        client=Client,
@@ -561,7 +561,7 @@ if __name__ == '__main__':
                        n_samples=n_samples,
                        n_class=n_class),
         'lottery_fl_v3_10_c_per_round_0.5_thresh':  # this key determines the output folder name under log_folder
-            build_args(arch='mlp',
+            build_args(arch='cnn',
                        dataset='mnist',
                        data_split=data_split,
                        client=Client,
@@ -580,7 +580,7 @@ if __name__ == '__main__':
                        n_samples=n_samples,
                        n_class=n_class),
         'lottery_fl_v3_20_c_per_round_0.5_thresh':  # this key determines the output folder name under log_folder
-            build_args(arch='mlp',
+            build_args(arch='cnn',
                        dataset='mnist',
                        data_split=data_split,
                        client=Client,
@@ -599,7 +599,7 @@ if __name__ == '__main__':
                        n_samples=n_samples,
                        n_class=n_class),
         'lottery_fl_v3_5_c_per_round_0.3_thresh':  # this key determines the output folder name under log_folder
-            build_args(arch='mlp',
+            build_args(arch='cnn',
                        dataset='mnist',
                        data_split=data_split,
                        client=Client,
@@ -618,7 +618,7 @@ if __name__ == '__main__':
                        n_samples=n_samples,
                        n_class=n_class),
         'lottery_fl_v3_10_c_per_round_0.3_thresh':  # this key determines the output folder name under log_folder
-            build_args(arch='mlp',
+            build_args(arch='cnn',
                        dataset='mnist',
                        data_split=data_split,
                        client=Client,
@@ -637,7 +637,7 @@ if __name__ == '__main__':
                        n_samples=n_samples,
                        n_class=n_class),
         'lottery_fl_v3_20_c_per_round_0.3_thresh':  # this key determines the output folder name under log_folder
-            build_args(arch='mlp',
+            build_args(arch='cnn',
                        dataset='mnist',
                        data_split=data_split,
                        client=Client,
@@ -656,7 +656,7 @@ if __name__ == '__main__':
                        n_samples=n_samples,
                        n_class=n_class),
         'genesis_5_c_per_round_pp_0.3':  # this key determines the output folder name under log_folder
-            build_args(arch='mlp',
+            build_args(arch='cnn',
                        dataset='mnist',
                        data_split='non-iid',
                        client=ClientGenesis,
@@ -674,7 +674,7 @@ if __name__ == '__main__':
                        n_samples=n_samples,
                        n_class=n_class),
         'genesis_5_c_per_round_pp_0.5':  # this key determines the output folder name under log_folder
-            build_args(arch='mlp',
+            build_args(arch='cnn',
                        dataset='mnist',
                        data_split='non-iid',
                        client=ClientGenesis,
@@ -692,7 +692,7 @@ if __name__ == '__main__':
                        n_samples=n_samples,
                        n_class=n_class),
         'genesis_5_c_per_round_pp_0.7':  # this key determines the output folder name under log_folder
-            build_args(arch='mlp',
+            build_args(arch='cnn',
                        dataset='mnist',
                        data_split='non-iid',
                        client=ClientGenesis,
@@ -710,7 +710,7 @@ if __name__ == '__main__':
                        n_samples=n_samples,
                        n_class=n_class),
         'genesis_5_c_per_round_pp_0.9':  # this key determines the output folder name under log_folder
-            build_args(arch='mlp',
+            build_args(arch='cnn',
                        dataset='mnist',
                        data_split='non-iid',
                        client=ClientGenesis,
@@ -728,7 +728,7 @@ if __name__ == '__main__':
                        n_samples=n_samples,
                        n_class=n_class),
         'genesis_10_c_per_round_pp_0.3':  # this key determines the output folder name under log_folder
-            build_args(arch='mlp',
+            build_args(arch='cnn',
                        dataset='mnist',
                        data_split='non-iid',
                        client=ClientGenesis,
@@ -746,7 +746,7 @@ if __name__ == '__main__':
                        n_samples=n_samples,
                        n_class=n_class),
         'genesis_10_c_per_round_pp_0.5':  # this key determines the output folder name under log_folder
-            build_args(arch='mlp',
+            build_args(arch='cnn',
                        dataset='mnist',
                        data_split='non-iid',
                        client=ClientGenesis,
@@ -764,7 +764,7 @@ if __name__ == '__main__':
                        n_samples=n_samples,
                        n_class=n_class),
         'genesis_10_c_per_round_pp_0.7':  # this key determines the output folder name under log_folder
-            build_args(arch='mlp',
+            build_args(arch='cnn',
                        dataset='mnist',
                        data_split='non-iid',
                        client=ClientGenesis,
@@ -782,7 +782,7 @@ if __name__ == '__main__':
                        n_samples=n_samples,
                        n_class=n_class),
         'genesis_10_c_per_round_pp_0.9':  # this key determines the output folder name under log_folder
-            build_args(arch='mlp',
+            build_args(arch='cnn',
                        dataset='mnist',
                        data_split='non-iid',
                        client=ClientGenesis,
@@ -800,7 +800,7 @@ if __name__ == '__main__':
                        n_samples=n_samples,
                        n_class=n_class),
         'genesis_20_c_per_round_pp_0.3':  # this key determines the output folder name under log_folder
-            build_args(arch='mlp',
+            build_args(arch='cnn',
                        dataset='mnist',
                        data_split='non-iid',
                        client=ClientGenesis,
@@ -818,7 +818,7 @@ if __name__ == '__main__':
                        n_samples=n_samples,
                        n_class=n_class),
         'genesis_20_c_per_round_pp_0.5':  # this key determines the output folder name under log_folder
-            build_args(arch='mlp',
+            build_args(arch='cnn',
                        dataset='mnist',
                        data_split='non-iid',
                        client=ClientGenesis,
@@ -836,7 +836,7 @@ if __name__ == '__main__':
                        n_samples=n_samples,
                        n_class=n_class),
         'genesis_20_c_per_round_pp_0.7':  # this key determines the output folder name under log_folder
-            build_args(arch='mlp',
+            build_args(arch='cnn',
                        dataset='mnist',
                        data_split='non-iid',
                        client=ClientGenesis,
@@ -854,7 +854,7 @@ if __name__ == '__main__':
                        n_samples=n_samples,
                        n_class=n_class),
         'genesis_20_c_per_round_pp_0.9':  # this key determines the output folder name under log_folder
-            build_args(arch='mlp',
+            build_args(arch='cnn',
                        dataset='mnist',
                        data_split='non-iid',
                        client=ClientGenesis,
