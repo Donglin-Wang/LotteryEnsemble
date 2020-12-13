@@ -102,5 +102,10 @@ class Server():
                     self.global_models = average_weights([m.model for m in self.clients[idx_list]], self.args.dataset,
                                                          self.args.arch,
                                                          self.client_data_num[idx_list])
+    
+                eval_score = evaluate(self.global_models, self.test_loader, verbose=self.args.test_verbosity)
+                print(f"Server accuracy: {eval_score['Accuracy']}")
+                self.accuracies[i] = eval_score['Accuracy'][-1]
+                
                 print(f"End of round accuracy: all={self.client_accuracies[:, i].mean()}, "
                     f"participating={self.client_accuracies[idx_list, i].mean()}")
