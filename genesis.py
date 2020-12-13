@@ -6,8 +6,8 @@ from util import copy_model, evaluate, fed_avg, get_prune_summary, prune_fixed_a
 import multiprocessing as mp
 
 class ClientGenesis(Client):
-    def __init__(self, args, train_loader, test_loader, client_id):
-        super().__init__(args, train_loader, test_loader, client_id)
+    def __init__(self, args, train_loader, test_loader, client_id, val_loader=None):
+        super().__init__(args, train_loader, test_loader, client_id, val_loader)
 
 
     def client_update(self, global_model, global_init_model, comm_round):

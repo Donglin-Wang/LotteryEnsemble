@@ -477,7 +477,7 @@ def train_client_model(acc_thresh, prune_percent, prune_step, prune_verbosity, d
 
 
 def train_client_model_orig(acc_thresh, prune_percent, prune_step, prune_verbosity, dataset, arch, lr, train_verbosity, client_epoch, log_folder,
-                       round, client_id, state_dict, global_state_dict, train_loader, test_loader, last_client_acc):
+                       round, client_id, state_dict, global_state_dict, train_loader, test_loader, val_loader, last_client_acc):
 
     model = create_model(dataset, arch)
     model.load_state_dict(state_dict)
@@ -496,7 +496,7 @@ def train_client_model_orig(acc_thresh, prune_percent, prune_step, prune_verbosi
     #prune_step = math.floor(num_params * self.args.prune_step)
 
     eval_score = evaluate(model,
-                          test_loader,
+                          val_loader,
                           verbose=False)
 
     #print(f"previous client acc: {last_client_acc} current client acc: {eval_score['Accuracy'][-1]}")

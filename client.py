@@ -12,7 +12,8 @@ class Client:
                  args, 
                  train_loader, 
                  test_loader,
-                 client_id=None):
+                 client_id=None,
+                 val_loader=None):
         self.args = args
         print("Creating model for client "+ str(client_id))
         self.model = None
@@ -30,6 +31,7 @@ class Client:
         self.named_buffers = None
         self.last_client_acc = 0
         self.state_dict = None
+        self.val_loader = val_loader
        # assert self.model, "Something went wrong and the model cannot be initialized"
 
         # This is a sanity check that we're getting proper data. Once we are confident about this, we can delete this.

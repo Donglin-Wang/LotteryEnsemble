@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from client import Client
 from server import Server
 from genesis import ClientGenesis, ServerGenesis
-from lottery_fl_ds import get_data
+from datasource import get_data
 from util import create_model
 import torch
 torch.manual_seed(0)
@@ -219,16 +219,16 @@ def run_experiment(args, overrides):
         setattr(args, k, v)
     args.log_folder = overrides['log_folder'] + '/' + overrides['exp_name']
     print("Started getting data")
-    (client_loaders, test_loader), global_test_loader =\
+    (client_loaders, val_loaders, test_loader), global_test_loader =\
         get_data(args.num_clients,
                  args.dataset, mode=args.data_split, batch_size=args.batch_size,
-                 n_samples = args.n_samples, n_class = args.n_class, rate_unbalance=args.rate_unbalance)
+                 num_train_samples_perclass = args.n_samples, n_class = args.n_class, rate_unbalance=args.rate_unbalance)
     print("Finished getting data")
     clients = []
     print("Initializing clients")
     for i in range(args.num_clients):
         print("Client " + str(i))
-        clients.append(args.client(args, client_loaders[i], test_loader[i], client_id=i))
+        clients.append(args.client(args, client_loaders[i], test_loader[i], client_id=i, val_loader=val_loaders[i]))
     
     server = args.server(args, np.array(clients, dtype=np.object), test_loader=global_test_loader)
     print("Now running the algorithm")
