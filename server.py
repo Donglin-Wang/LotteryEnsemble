@@ -73,7 +73,7 @@ class Server():
                                                     i, c, self.clients[c].model.state_dict(),
                                                     self.global_models.state_dict() if self.args.avg_logic != "standalone" else self.clients[c].model.state_dict(),
                                                     self.clients[c].train_loader,
-                                                    self.clients[c].test_loader, self.clients[c].last_client_acc
+                                                    self.clients[c].test_loader, self.clients[c].val_loader, self.clients[c].last_client_acc
                                                     ) for c in idx_list])
                 for (k, vals) in enumerate(a):
                     self.clients[idx_list[k]].losses[i:] = vals[0]
