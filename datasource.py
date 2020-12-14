@@ -140,7 +140,7 @@ def non_iid_split(num_clients, num_train_samples_perclass,
         
 
         cur_loader_val = torch.utils.data.DataLoader(train_data,
-                                                 batch_sampler=cur_sampler)
+                                                 batch_sampler=cur_sampler_val)
 
         val_loaders.append(cur_loader_val)
 
