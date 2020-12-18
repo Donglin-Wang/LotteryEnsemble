@@ -167,51 +167,52 @@ def log_experiment(server, clients, exp_name, exp_settings):
     axs.set_ylabel("Mean Loss")
     fig.savefig(f"{save_path}/mu_client_losses_by_r.png")
 
-    # log class and mask overlap for every pair of clients
-    mask_start_time = time.time()
-    num_clients = len(clients)
-    overlap_arr = np.zeros((int(num_clients * (num_clients - 1) / 2), 5), dtype='float32')
-    i = 0
-    for c1 in range(len(clients)):
-        for c2 in range(c1 + 1, len(clients)):
-            mask_c1 = clients[c1].get_mask()
-            mask_c2 = clients[c2].get_mask()
-            # Sanity check:
-            if mask_c1.sum() == 0:
-                print(f'PROBLEM: Client {c1} has mask of all zeros.')
-            if mask_c2.sum() == 0:
-                print(f'PROBLEM: Client {c2} has mask of all zeros.')
-            mask_overlap = (mask_c1 * mask_c2).sum()
-            combined_mask_extent = np.logical_or(mask_c1, mask_c2)
-            normalized_mask_overlap = mask_overlap / combined_mask_extent.sum()  # denominator should never be 0
-            if math.isnan(normalized_mask_overlap):
-                print(f'Nan found for clients {c1}, {c2}. Mask sums: {mask_c1.sum()}, {mask_c2.sum()}')
+    # log class and mask overlap for every pair of clients (but don't bother for Genesis)
+    if exp_settings.client != ClientGenesis:
+        mask_start_time = time.time()
+        num_clients = len(clients)
+        overlap_arr = np.zeros((int(num_clients * (num_clients - 1) / 2), 5), dtype='float32')
+        i = 0
+        for c1 in range(len(clients)):
+            for c2 in range(c1 + 1, len(clients)):
+                mask_c1 = clients[c1].get_mask()
+                mask_c2 = clients[c2].get_mask()
+                # Sanity check:
+                if mask_c1.sum() == 0:
+                    print(f'PROBLEM: Client {c1} has mask of all zeros.')
+                if mask_c2.sum() == 0:
+                    print(f'PROBLEM: Client {c2} has mask of all zeros.')
+                mask_overlap = (mask_c1 * mask_c2).sum()
+                combined_mask_extent = np.logical_or(mask_c1, mask_c2)
+                normalized_mask_overlap = mask_overlap / combined_mask_extent.sum()  # denominator should never be 0
+                if math.isnan(normalized_mask_overlap):
+                    print(f'Nan found for clients {c1}, {c2}. Mask sums: {mask_c1.sum()}, {mask_c2.sum()}')
 
-            class_overlap = 0
-            classes_c1 = clients[c1].get_class_counts('train')
-            classes_c2 = clients[c2].get_class_counts('train')
-            for k, v in classes_c1.items():
-                if k in classes_c2:
-                    class_overlap += 1
-            overlap_arr[i] = [c1, c2, class_overlap, mask_overlap, normalized_mask_overlap]
-            i += 1
-    np.save(f'{save_path}/class_and_mask_overlap.npy', overlap_arr)
-    # figure for class and mask overlap
-    class_overlaps = overlap_arr[:, 2]
-    ave_mask_overlap = np.zeros((3,), dtype='float32')
-    for co in [0, 1, 2]:
-        if np.count_nonzero(class_overlaps == co) > 0:
-            ave_mask_overlap[co] = overlap_arr[:, 4][class_overlaps == co].mean()
-        else:
-            ave_mask_overlap[co] = 0
-    fig, axs = plt.subplots(1, 1)
-    plt.bar([0, 1, 2], ave_mask_overlap)
-    axs.set_title("Summary of pairwise client mask overlap")
-    axs.set_xlabel("Class overlap")
-    axs.set_ylabel("Mean mask overlap (# weights)")
-    axs.set_xticks([0, 1, 2])
-    fig.savefig(f"{save_path}/mask_overlap_by_class_overlap.png")
-    print(f'Time to compute mask info:   {str(datetime.timedelta(seconds=round(time.time() - mask_start_time)))}\n')
+                class_overlap = 0
+                classes_c1 = clients[c1].get_class_counts('train')
+                classes_c2 = clients[c2].get_class_counts('train')
+                for k, v in classes_c1.items():
+                    if k in classes_c2:
+                        class_overlap += 1
+                overlap_arr[i] = [c1, c2, class_overlap, mask_overlap, normalized_mask_overlap]
+                i += 1
+        np.save(f'{save_path}/class_and_mask_overlap.npy', overlap_arr)
+        # figure for class and mask overlap
+        class_overlaps = overlap_arr[:, 2]
+        ave_mask_overlap = np.zeros((3,), dtype='float32')
+        for co in [0, 1, 2]:
+            if np.count_nonzero(class_overlaps == co) > 0:
+                ave_mask_overlap[co] = overlap_arr[:, 4][class_overlaps == co].mean()
+            else:
+                ave_mask_overlap[co] = 0
+        fig, axs = plt.subplots(1, 1)
+        plt.bar([0, 1, 2], ave_mask_overlap)
+        axs.set_title("Summary of pairwise client mask overlap")
+        axs.set_xlabel("Class overlap")
+        axs.set_ylabel("Mean mask overlap (# weights)")
+        axs.set_xticks([0, 1, 2])
+        fig.savefig(f"{save_path}/mask_overlap_by_class_overlap.png")
+        print(f'Time to compute mask info:   {str(datetime.timedelta(seconds=round(time.time() - mask_start_time)))}\n')
 
 
 def run_experiment(args, overrides):
@@ -225,13 +226,9 @@ def run_experiment(args, overrides):
                  num_train_samples_perclass = args.n_samples, n_class = args.n_class, rate_unbalance=args.rate_unbalance)
     print("Finished getting data")
     clients = []
-    print("Initializing clients")
     for i in range(args.num_clients):
-        print("Client " + str(i))
         clients.append(args.client(args, client_loaders[i], test_loader[i], client_id=i, val_loader=val_loaders[i]))
-    
     server = args.server(args, np.array(clients, dtype=np.object), test_loader=global_test_loader)
-    print("Now running the algorithm")
     server.server_update()
     return server, clients
 
