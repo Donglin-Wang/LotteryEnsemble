@@ -88,9 +88,16 @@ class ServerGenesis(Server):
                 # prune global model if appropriate
                 num_pruned, num_params = get_prune_summary(self.global_models)
                 cur_prune_rate = num_pruned / num_params
+
+                # We have effectively pruned all clients by pruning the global model.
+                # As prune rates are stored and reported based on clients, we update these values.
+                for c in self.clients:
+                    c.prune_rates[comm_round:] = cur_prune_rate
+                # Now prune server model.
                 if self.client_accuracies[:, comm_round].mean() > self.args.acc_thresh \
                         and cur_prune_rate < self.args.prune_percent:
-                    prune_fixed_amount(self.global_models, self.args.prune_step, verbose=self.args.prune_verbosity)
+                    prune_fraction = min(self.args.prune_step, 0.001 + self.args.prune_percent - cur_prune_rate)
+                    prune_fixed_amount(self.global_models, prune_fraction, verbose=self.args.prune_verbosity)
                     self.global_models = copy_model(self.global_init_model,
                                                     self.args.dataset,
                                                     self.args.arch,
